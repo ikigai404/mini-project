@@ -172,9 +172,9 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
             position: fixed;
             width: 400px; height: 400px;
             background: radial-gradient(circle, rgba(14, 165, 233, 0.15) 0%, transparent 70%);
-            border-radius: 50%;
+            border-radius: 50%; pointer-events: none;
             pointer-events: none;
-            transform: translate(-50%, -50%);
+            transform: translate(-50%, -50%) translateZ(-1px);
             z-index: 1;
             transition: opacity 0.3s ease;
         }
@@ -183,10 +183,13 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         .map-fade { animation: mapFadeIn 0.5s ease-out; }
         @keyframes mapFadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         #mapWrapper { transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+
+        /* Prevent glow from appearing over modals/panels */
+        .glass-panel, .modal-overlay > div { position: relative; z-index: 50; }
     </style>
 </head>
-<body class="bg-zinc-950 text-white min-h-screen overflow-x-hidden">
-    <div id="landing" class="page-section <?php echo isset($_SESSION['user_id']) ? 'hidden' : ''; ?> hero-bg min-h-screen flex flex-col items-center justify-center relative">
+<body class="bg-zinc-950 text-white min-h-screen overflow-x-hidden relative">
+    <div id="landing" class="page-section <?php echo isset($_SESSION['user_id']) ? 'hidden' : ''; ?> hero-bg min-h-screen flex flex-col items-center justify-center">
         <div id="pointer-glow"></div>
         <div class="max-w-6xl mx-auto px-6 text-center z-10">
             <div class="animate-item mb-6 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
@@ -227,6 +230,7 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 
     <div id="signin" class="page-section <?php echo (isset($_SESSION['user_id']) || (isset($auth_type) && $auth_type == 'success')) ? 'hidden' : ''; ?> min-h-screen hero-bg flex items-center justify-center p-6 relative">
+        <div id="pointer-glow"></div>
         <button onclick="window.scrollTo({top: 0, behavior: 'smooth'})" class="absolute top-8 left-8 text-white/50 hover:text-white transition-colors flex items-center gap-2">
             <i class="fa-solid fa-arrow-left"></i> Back
         </button>
@@ -273,6 +277,7 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 
     <div id="signup" class="page-section <?php echo ($auth_type == 'success' && !isset($_SESSION['user_id'])) ? '' : 'hidden'; ?> min-h-screen hero-bg flex items-center justify-center p-6 relative">
+        <div id="pointer-glow"></div>
         <button onclick="showPage('signin'); window.scrollTo({top: 0, behavior: 'smooth'});" class="absolute top-8 left-8 text-white/50 hover:text-white transition-colors flex items-center gap-2">
             <i class="fa-solid fa-arrow-left"></i> Back
         </button>
@@ -324,6 +329,7 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <?php if (isset($_SESSION['user_id'])): ?>
     <div id="dashboard" class="page-section hero-bg min-h-screen p-8">
+        <div id="pointer-glow"></div>
         <div class="max-w-6xl mx-auto relative z-10">
         <div class="flex justify-between items-center mb-10">
             <h1 class="logo-font text-4xl font-bold text-white tracking-tight">Trace<span class="text-sky-500">It</span> <span class="text-xs uppercase tracking-[0.3em] text-zinc-500 ml-2">v2.0</span></h1>
@@ -434,10 +440,12 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <script>
         // 0. Pointer Glow Logic
-        const glow = document.getElementById('pointer-glow');
+        const glows = document.querySelectorAll('#pointer-glow');
         window.addEventListener('mousemove', (e) => {
-            glow.style.left = e.clientX + 'px';
-            glow.style.top = e.clientY + 'px';
+            glows.forEach(glow => {
+                glow.style.left = e.clientX + 'px';
+                glow.style.top = e.clientY + 'px';
+            });
         });
 
         // 1. UI Interactions
