@@ -160,13 +160,13 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         }
         
         /* Map Specific Styles */
-        .pin { position: absolute; width: 24px; height: 24px; border-radius: 50% 50% 50% 0; transform: translate(-50%, -100%) rotate(-45deg); cursor: pointer; z-index: 10; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); border: 2px solid rgba(255,255,255,0.5); mix-blend-mode: screen; }
+        .pin { position: absolute; width: 24px; height: 24px; border-radius: 50% 50% 50% 0; transform: translate(-50%, -100%) rotate(-45deg); cursor: pointer; z-index: 40; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); border: 2px solid rgba(255,255,255,0.8); }
         .pin:hover { transform: translate(-50%, -110%) rotate(-45deg) scale(1.2); z-index: 20; }
         .pin-lost { background: linear-gradient(135deg, #ff416c, #ff4b2b); box-shadow: 0 0 10px rgba(239, 68, 68, 0.6); }
         .pin-found { background: linear-gradient(135deg, #11786c, #96c93d); box-shadow: 0 0 10px rgba(16, 185, 129, 0.6); }
         .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(8px); z-index:50; align-items:center; justify-content:center; }
         .map-container { perspective: 1000px; }
-        #mainMap:hover { cursor: crosshair; }
+        #mainMap { cursor: default; }
         #mainMap { transition: transform 0.5s ease; border: 1px solid rgba(56, 189, 248, 0.2); }
 
         /* Pointer Glow Effect */
@@ -502,20 +502,38 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         // 2. Map Interaction & Boundary Logic
         const mapWrapper = document.getElementById('mapWrapper');
         if(mapWrapper) {
-            mapWrapper.onclick = (e) => {
-                if(e.target.classList.contains('pin')) return; 
+            const mainMap = document.getElementById('mainMap');
+            
+            mainMap.addEventListener('mousemove', (e) => {
+                mainMap.style.cursor = isPointInMap(e) ? 'crosshair' : 'default';
+            });
 
-                const rect = mapWrapper.getBoundingClientRect();
-                const x = ((e.clientX - rect.left) / rect.width) * 100;
-                const y = ((e.clientY - rect.top) / rect.height) * 100;
-
-                if (x < 0 || x > 100 || y < 0 || y > 100) return;
-                if (e.target.id !== 'mainMap') return;
-
-                document.getElementById('rx').value = x;
-                document.getElementById('ry').value = y;
-                document.getElementById('reportModal').style.display = 'flex';
+            mainMap.onclick = function(e) {
+                    if (!isPointInMap(e)) return;
+                    e.stopPropagation();
+                    const rect = mainMap.getBoundingClientRect();
+                    const x = ((e.clientX - rect.left) / rect.width) * 100;
+                    const y = ((e.clientY - rect.top) / rect.height) * 100;
+                    document.getElementById('rx').value = x;
+                    document.getElementById('ry').value = y;
+                    document.getElementById('reportModal').style.display = 'flex';
             };
+
+            function isPointInMap(e) {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = mainMap.naturalWidth;
+                canvas.height = mainMap.naturalHeight;
+                ctx.drawImage(mainMap, 0, 0);
+                
+                const rect = mainMap.getBoundingClientRect();
+                const x = ((e.clientX - rect.left) / rect.width) * canvas.width;
+                const y = ((e.clientY - rect.top) / rect.height) * canvas.height;
+                
+                const pixel = ctx.getImageData(x, y, 1, 1).data;
+                // Check if pixel is not pure white (255, 255, 255)
+                return !(pixel[0] > 250 && pixel[1] > 250 && pixel[2] > 250);
+            }
         }
 
         // 3. Modal Management
