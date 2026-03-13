@@ -188,8 +188,8 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         .glass-panel, .modal-overlay > div { position: relative; z-index: 50; }
     </style>
 </head>
-<body class="bg-zinc-950 text-white min-h-screen overflow-x-hidden relative">
-    <div id="landing" class="page-section <?php echo isset($_SESSION['user_id']) ? 'hidden' : ''; ?> hero-bg min-h-screen flex flex-col items-center justify-center">
+<body class="bg-zinc-950 text-white min-h-screen overflow-x-hidden relative scroll-smooth">
+    <div id="landing" class="<?php echo isset($_SESSION['user_id']) ? 'hidden' : ''; ?> hero-bg min-h-screen flex flex-col items-center justify-center relative">
         <div id="pointer-glow"></div>
         <div class="max-w-6xl mx-auto px-6 text-center z-10">
             <div class="animate-item mb-6 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
@@ -229,7 +229,7 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
 
-    <div id="signin" class="page-section <?php echo (isset($_SESSION['user_id']) || (isset($auth_type) && $auth_type == 'success')) ? 'hidden' : ''; ?> min-h-screen hero-bg flex items-center justify-center p-6 relative">
+    <div id="signin" class="<?php echo (isset($_SESSION['user_id']) || (isset($auth_type) && $auth_type == 'success')) ? 'hidden' : ''; ?> min-h-screen hero-bg flex items-center justify-center p-6 relative border-t border-white/5">
         <div id="pointer-glow"></div>
         <button onclick="window.scrollTo({top: 0, behavior: 'smooth'})" class="absolute top-8 left-8 text-white/50 hover:text-white transition-colors flex items-center gap-2">
             <i class="fa-solid fa-arrow-left"></i> Back
@@ -240,7 +240,7 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
                 <div class="w-16 h-16 bg-sky-500/20 text-sky-400 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-sky-500/30">
                     <i class="fa-solid fa-right-to-bracket text-2xl"></i>
                 </div>
-                <h2 class="text-3xl font-bold text-white">Welcome Back</h2>
+                <h2 class="text-3xl font-bold text-white">Welcome!</h2>
                 <p class="text-zinc-400 mt-2">Sign in to your TraceIt account</p>
             </div>
 
@@ -276,7 +276,7 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
 
-    <div id="signup" class="page-section <?php echo ($auth_type == 'success' && !isset($_SESSION['user_id'])) ? '' : 'hidden'; ?> min-h-screen hero-bg flex items-center justify-center p-6 relative">
+    <div id="signup" class="<?php echo ($auth_type == 'success' && !isset($_SESSION['user_id'])) ? '' : 'hidden'; ?> min-h-screen hero-bg flex items-center justify-center p-6 relative border-t border-white/5">
         <div id="pointer-glow"></div>
         <button onclick="showPage('signin'); window.scrollTo({top: 0, behavior: 'smooth'});" class="absolute top-8 left-8 text-white/50 hover:text-white transition-colors flex items-center gap-2">
             <i class="fa-solid fa-arrow-left"></i> Back
@@ -328,7 +328,7 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 
     <?php if (isset($_SESSION['user_id'])): ?>
-    <div id="dashboard" class="page-section hero-bg min-h-screen p-8">
+    <div id="dashboard" class="hero-bg min-h-screen p-8">
         <div id="pointer-glow"></div>
         <div class="max-w-6xl mx-auto relative z-10">
         <div class="flex justify-between items-center mb-10">
@@ -450,17 +450,8 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
 
         // 1. UI Interactions
         function showPage(page) {
-            const sections = ['landing', 'signin', 'signup', 'dashboard'];
-            sections.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                    if (id === page) {
-                        el.classList.remove('hidden');
-                    } else {
-                        el.classList.add('hidden');
-                    }
-                }
-            });
+            const el = document.getElementById(page);
+            if (el) el.scrollIntoView({behavior: 'smooth'});
         }
 
         function togglePassword(inputId, iconId) {
