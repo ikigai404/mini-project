@@ -79,6 +79,8 @@ if (isset($_POST['verify_otp'])) {
     $item = $stmt->fetch();
     if ($item) {
         $db->prepare("UPDATE items SET status = 'resolved' WHERE id = ?")->execute([$_POST['item_id']]);
+        $_SESSION['auth_success'] = "Item successfully resolved! Thank you for using TraceIt.";
+        $_SESSION['auth_type'] = "success";
         header("Location: index.php?floor=" . urlencode($_GET['floor'] ?? 'floor1'));
         exit();
     } else {
@@ -134,25 +136,27 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         .page-section.hidden { opacity: 0; pointer-events: none; transform: translateY(10px); visibility: hidden; position: absolute; }
         .page-section:not(.hidden) { opacity: 1; pointer-events: auto; transform: translateY(0); position: relative; z-index: 10; }
 
-        /* Clean Technical Background */
-        .hero-bg {
-            background-color: #020617;
+        /* Global Technical Background */
+        body {
+            background-color: #0c4a6e;
             background-image: 
                 linear-gradient(rgba(153, 218, 248, 0.08) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(14, 165, 233, 0.08) 1px, transparent 1px);
             background-size: 40px 40px;
+            background-attachment: fixed;
+        }
+        .hero-bg {
             position: relative;
-            overflow: hidden;
         }
         .hero-bg::after {
             content: ""; position: absolute; inset: 0;
-            background: radial-gradient(circle at 50% 50%, transparent 0%, #020617 80%);
+            background: radial-gradient(circle at 50% 50%, transparent 0%, #0c4a6e 80%);
             pointer-events: none;
         }
 
         /* Glassmorphism Panel */
         .glass-panel {
-            background: rgba(15, 23, 42, 0.7);
+            background: rgba(15, 23, 42, 0.6);
             backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.1);
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
@@ -199,7 +203,7 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         .pin-lost { background: linear-gradient(135deg, #ff416c, #ff4b2b); box-shadow: 0 0 10px rgba(239, 68, 68, 0.6); }
         .pin-found { background: linear-gradient(135deg, #11786c, #96c93d); box-shadow: 0 0 10px rgba(16, 185, 129, 0.6); }
         .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(8px); z-index:50; align-items:center; justify-content:center; overflow-y: auto; padding: 20px; }
-        .map-container { perspective: 1000px; position: relative; }
+        #mainMap { cursor: default; filter: invert(1) hue-rotate(195deg) brightness(1.1) contrast(1.1) saturate(0.6) drop-shadow(0 0 25px rgba(56, 189, 248, 0.15)); opacity: 0.9; }
         #mainMap { cursor: default; filter: invert(1) hue-rotate(195deg) brightness(0.9) contrast(1.1) saturate(0.4) drop-shadow(0 0 25px rgba(56, 189, 248, 0.15)); opacity: 0.85; }
         #mainMap { transition: transform 0.5s ease; border: 1px solid rgba(56, 189, 248, 0.2); }
 
@@ -255,11 +259,11 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         /* Hover Popup Styles */
         .pin-popup { display: none; position: absolute; bottom: 140%; left: 50%; transform: translateX(-50%); z-index: 110; width: 260px; pointer-events: none; }
         .pin:hover .pin-popup { display: block; }
-        .popup-content { transform: rotate(45deg); background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.15); }
+        .popup-content { transform: rotate(45deg); background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.15); }
     </style>
 </head>
 <body class="bg-zinc-950 text-white min-h-screen overflow-x-hidden relative scroll-smooth">
-    <div id="landing" class="<?php echo isset($_SESSION['user_id']) ? 'hidden' : ''; ?> hero-bg min-h-screen flex flex-col items-center justify-center relative">
+    <div id="landing" class="<?php echo isset($_SESSION['user_id']) ? 'hidden' : ''; ?> min-h-screen flex flex-col items-center justify-center relative">
         <div id="pointer-glow"></div>
         
         <!-- Floating Background Elements -->
@@ -286,7 +290,7 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
             <h1 class="slow-fade-in logo-font text-7xl md:text-9xl font-bold mb-6 tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-sky-500/50">
                 TraceIt .
             </h1>
-            
+
             <p class="slow-fade-in text-lg md:text-xl text-zinc-400 mb-8 max-w-2xl mx-auto font-mono leading-relaxed" style="animation-delay: 0.5s;">
                 <span class="inline-block">
                     TraceIt: A precision-mapped recovery network for campus essentials.
@@ -305,8 +309,8 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
             </div>
         </div>
 
-        <div class="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 cursor-pointer group transition-all hover:bottom-8" onclick="document.getElementById('signin').scrollIntoView({behavior: 'smooth'})">
-            <span class="text-[10px] uppercase tracking-[0.4em] text-zinc-500 font-bold group-hover:text-sky-400 transition-colors"></span>
+        <div class="absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 cursor-pointer group transition-all translate-y-1/2 z-20" onclick="document.getElementById('signin').scrollIntoView({behavior: 'smooth'})">
+            <span class="text-[10px] uppercase tracking-[0.4em] text-zinc-500 font-bold group-hover:text-sky-400 transition-colors">Explore Features</span>
             <div class="flex flex-col items-center">
                 <i class="fa-solid fa-chevron-down text-sky-500 animate-bounce text-sm"></i>
                 <div class="w-px h-12 bg-gradient-to-b from-sky-500 via-sky-500/20 to-transparent mt-1"></div>
@@ -314,7 +318,54 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
 
-    <div id="signin" class="<?php echo (isset($_SESSION['user_id']) || (isset($auth_type) && $auth_type == 'success')) ? 'hidden' : ''; ?> min-h-screen hero-bg flex items-center justify-center p-6 relative border-t border-white/5">
+    <!-- Professional Feature Tiles Section -->
+    <div id="features" class="<?php echo isset($_SESSION['user_id']) ? 'hidden' : ''; ?> py-24 relative overflow-hidden">
+        <div class="max-w-6xl mx-auto px-8 relative z-10">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- Tile 1 -->
+                <div class="glass-panel p-8 rounded-[2rem] border border-white/5 hover:border-sky-500/30 transition-all group">
+                    <div class="w-14 h-14 bg-sky-500/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-map-location-dot text-2xl text-sky-400"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Precision Mapping</h3>
+                    <p class="text-zinc-400 text-sm leading-relaxed">Pinpoint exactly where you lost or found an item using our interactive multi-floor campus blueprints.</p>
+                </div>
+                <!-- Tile 2 -->
+                <div class="glass-panel p-8 rounded-[2rem] border border-white/5 hover:border-emerald-500/30 transition-all group">
+                    <div class="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-shield-halved text-2xl text-emerald-400"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3"><i class="fa-solid fa-lock-open mr-2 text-sm opacity-50"></i>Secure Exchange</h3>
+                    <p class="text-zinc-400 text-sm leading-relaxed">Our proprietary 4-digit OTP system ensures items are only returned to their rightful owners.</p>
+                </div>
+                <!-- Tile 3 -->
+                <div class="glass-panel p-8 rounded-[2rem] border border-white/5 hover:border-purple-500/30 transition-all group">
+                    <div class="w-14 h-14 bg-purple-500/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-bolt text-2xl text-purple-400"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Real-time Updates</h3>
+                    <p class="text-zinc-400 text-sm leading-relaxed">Instant visibility across the network. As soon as a report is filed, it's live for the entire campus to see.</p>
+                </div>
+            </div>
+
+            <!-- Welcome/CTA Tile -->
+            <div class="mt-12 glass-panel p-12 rounded-[3rem] border border-sky-500/20 bg-gradient-to-br from-sky-500/5 to-transparent flex flex-col md:flex-row items-center justify-between gap-8">
+                <div class="max-w-xl">
+                    <h2 class="text-4xl font-bold mb-4">Ready to reunite?</h2>
+                    <p class="text-zinc-400 text-lg">Join hundreds of students already using TraceIt to secure their campus life. Professional, secure, and efficient.</p>
+                </div>
+                <button onclick="document.getElementById('signin').scrollIntoView({behavior: 'smooth'})" class="bg-white text-black px-12 py-5 rounded-2xl font-bold hover:bg-sky-400 hover:text-white transition-all whitespace-nowrap">
+                    Sign In Now
+                </button>
+            </div>
+        </div>
+        
+        <!-- Decorative Background Blur -->
+        <div class="absolute top-1/2 left-0 -translate-y-1/2 w-96 h-96 bg-sky-500/10 blur-[120px] rounded-full"></div>
+        <div class="absolute bottom-0 right-0 w-96 h-96 bg-emerald-500/5 blur-[120px] rounded-full"></div>
+    </div>
+
+    <div id="signin" class="<?php echo (isset($_SESSION['user_id']) || (isset($auth_type) && $auth_type == 'success')) ? 'hidden' : ''; ?> min-h-screen flex items-center justify-center p-6 relative">
         <div id="pointer-glow"></div>
 
         <!-- Floating Background Elements -->
@@ -328,10 +379,6 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         <div class="floating-text text-3xl" style="top: 50%; left: 90%; --duration: 21s; --rx: -80px; --ry: -30px; --rd: -12deg;"><i class="fa-solid fa-umbrella"></i></div>
         <div class="floating-text text-2xl" style="top: 70%; left: 45%; --duration: 26s; --rx: 50px; --ry: 70px; --rd: 8deg;"><i class="fa-solid fa-laptop"></i></div>
         <div class="floating-text text-xl" style="top: 30%; left: 25%; --duration: 19s; --rx: -40px; --ry: -60px; --rd: -18deg;"><i class="fa-solid fa-book"></i></div>
-
-        <button onclick="window.scrollTo({top: 0, behavior: 'smooth'})" class="absolute top-8 left-8 text-white/50 hover:text-white transition-colors flex items-center gap-2">
-            <i class="fa-solid fa-arrow-left"></i> Back
-        </button>
 
         <div class="glass-panel rounded-[2rem] w-full max-w-md p-10 relative overflow-hidden">
             <div class="text-center mb-8 animate-item">
@@ -381,7 +428,7 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
 
-    <div id="signup" class="hidden min-h-screen hero-bg flex items-center justify-center p-6 relative border-t border-white/5">
+    <div id="signup" class="hidden min-h-screen flex items-center justify-center p-6 relative">
         <div id="pointer-glow"></div>
 
         <!-- Floating Background Elements -->
@@ -448,10 +495,18 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 
     <?php if (isset($_SESSION['user_id'])): ?>
-    <div id="dashboard" class="hero-bg min-h-screen p-8">
+    <div id="dashboard" class="min-h-screen p-8">
         <div id="pointer-glow"></div>
         <div class="max-w-6xl mx-auto relative z-10">
         
+        <?php if (isset($_SESSION['auth_success'])): ?>
+            <div class="mb-6 p-4 rounded-2xl text-sm font-medium flex items-center justify-between gap-3 animate-item bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 backdrop-blur-md">
+                <div class="flex items-center gap-3"><i class="fa-solid fa-circle-check"></i> <?php echo $_SESSION['auth_success']; ?></div>
+                <button onclick="this.parentElement.remove()" class="opacity-50 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <?php unset($_SESSION['auth_success']); unset($_SESSION['auth_type']); ?>
+        <?php endif; ?>
+
         <?php if ($auth_message && isset($_POST['verify_otp'])): ?>
             <div class="mb-6 p-4 rounded-2xl text-sm font-medium flex items-center justify-between gap-3 animate-item bg-red-500/10 text-red-400 border border-red-500/20 backdrop-blur-md">
                 <div class="flex items-center gap-3"><i class="fa-solid fa-circle-exclamation"></i> <?php echo $auth_message; ?></div>
@@ -612,6 +667,41 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
             <button onclick="closeModals()" class="w-full mt-4 text-zinc-500 hover:text-white transition-colors">Cancel</button>
         </div>
     </div>
+
+    <footer class="relative z-10 pt-20 pb-10 border-t border-white/5 backdrop-blur-md">
+        <div class="max-w-6xl mx-auto px-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-12 mb-16">
+                <div class="space-y-4">
+                    <h3 class="logo-font text-2xl font-bold text-white">TraceIt<span class="text-sky-500">.</span></h3>
+                    <p class="text-zinc-400 text-sm leading-relaxed">
+                        The next generation of campus lost and found. Leveraging precision mapping and secure OTP verification to reunite students with their essentials.
+                    </p>
+                </div>
+                <div class="space-y-4">
+                    <h4 class="text-xs uppercase tracking-[0.2em] font-bold text-sky-500">Development Team</h4>
+                    <ul class="text-zinc-400 text-sm space-y-2">
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-terminal text-[10px] text-zinc-600"></i> Prompter</li>
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-keyboard text-[10px] text-zinc-600"></i> Typist</li>
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-vial text-[10px] text-zinc-600"></i> Tester</li>
+                    </ul>
+                </div>
+                <div class="space-y-4">
+                    <h4 class="text-xs uppercase tracking-[0.2em] font-bold text-sky-500">Project Info</h4>
+                    <p class="text-zinc-400 text-sm">
+                        Mini Project 2026<br>
+                        Computer Science Department<br>
+                        Campus Recovery Network v2.0<br>
+                        By Group 21.
+                    </p>
+                </div>
+            </div>
+            <div class="pt-8 border-t border-white/5 text-center">
+                <p class="text-zinc-600 text-[10px] tracking-[0.3em] uppercase font-medium">
+                    &copy; <?php echo date("Y"); ?> TraceIt Campus Recovery System. All Rights Reserved.
+                </p>
+            </div>
+        </div>
+    </footer>
 
     <script>
         // 0. Pointer Glow Logic
