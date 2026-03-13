@@ -1,164 +1,167 @@
 <?php
-// 1. DATABASE SETUP
+session_start();
 $db = new PDO('sqlite:database.db');
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-// Updated table with 'floor' column
-$db->exec("CREATE TABLE IF NOT EXISTS items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT,
-    description TEXT,
-    item_type TEXT,
-    x_pos REAL,
-    y_pos REAL,
-    floor TEXT,
-    contact TEXT
-)");
+// Initialize Tables
+$db->exec("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT UNIQUE, password TEXT)");
+$db->exec("CREATE TABLE IF NOT EXISTS items (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, claimer_id INTEGER DEFAULT NULL, title TEXT, description TEXT, item_type TEXT, x_pos REAL, y_pos REAL, floor TEXT, contact TEXT, otp_code TEXT, status TEXT DEFAULT 'active')");
 
-// 2. HANDLE FORM SUBMISSION
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_item'])) {
-    $stmt = $db->prepare("INSERT INTO items (title, description, item_type, x_pos, y_pos, floor, contact) VALUES (?, ?, ?, ?, ?, ?, ?)");
-    $stmt->execute([
-        $_POST['title'], $_POST['description'], $_POST['item_type'], 
-        $_POST['x_pos'], $_POST['y_pos'], $_POST['floor'], $_POST['contact']
-    ]);
-    header("Location: index.php?floor=" . $_POST['floor']);
-    exit();
+// --- AUTH LOGIC ---
+if (isset($_POST['signup'])) {
+    $hash = password_hash($_POST['password'], PASSWORD_DEFAULT);
+    $stmt = $db->prepare("INSERT INTO users (name, email, password) VALUES (?, ?, ?)");
+    $stmt->execute([$_POST['name'], $_POST['email'], $hash]);
 }
 
-// 3. FLOOR SELECTION LOGIC
-$current_floor = isset($_GET['floor']) ? $_GET['floor'] : 'floor1';
+if (isset($_POST['login'])) {
+    $stmt = $db->prepare("SELECT * FROM users WHERE email = ?");
+    $stmt->execute([$_POST['email']]);
+    $user = $stmt->fetch();
+    if ($user && password_verify($_POST['password'], $user['password'])) {
+        $_SESSION['user_id'] = $user['id'];
+        $_SESSION['user_name'] = $user['name'];
+    }
+}
 
-// Fetch pins only for the current floor
-$stmt = $db->prepare("SELECT * FROM items WHERE floor = ?");
-$stmt->execute([$current_floor]);
-$items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+if (isset($_GET['logout'])) { session_destroy(); header("Location: index.php"); }
+
+// --- ITEM LOGIC ---
+if (isset($_POST['save_item']) && isset($_SESSION['user_id'])) {
+    $otp = rand(1000, 9999); // Generate Secret OTP
+    $stmt = $db->prepare("INSERT INTO items (user_id, title, description, item_type, x_pos, y_pos, floor, contact, otp_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->execute([$_SESSION['user_id'], $_POST['title'], $_POST['description'], $_POST['item_type'], $_POST['x_pos'], $_POST['y_pos'], $_POST['floor'], $_POST['contact'], $otp]);
+}
+
+// --- OTP HANDSHAKE LOGIC ---
+if (isset($_POST['verify_otp'])) {
+    $stmt = $db->prepare("SELECT * FROM items WHERE id = ? AND otp_code = ?");
+    $stmt->execute([$_POST['item_id'], $_POST['entered_otp']]);
+    if ($stmt->fetch()) {
+        $db->prepare("UPDATE items SET status = 'resolved', claimer_id = ? WHERE id = ?")->execute([$_SESSION['user_id'], $_POST['item_id']]);
+        $msg = "Exchange Confirmed! Item removed.";
+    } else {
+        $error = "Invalid OTP code!";
+    }
+}
+
+$current_floor = $_GET['floor'] ?? 'floor1';
+$items = $db->prepare("SELECT items.*, users.name as owner_name FROM items JOIN users ON items.user_id = users.id WHERE floor = ? AND status = 'active'");
+$items->execute([$current_floor]);
+$display_items = $items->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Uni Lost & Found</title>
+    <title>UCSC Lost & Found Pro</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #e9ecef; margin: 0; padding: 20px; text-align: center; }
-        .container { max-width: 1000px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        
-        /* Navigation */
-        .floor-nav { margin-bottom: 20px; }
-        .floor-nav a { text-decoration: none; }
-        .floor-btn { padding: 10px 20px; margin: 5px; border: none; border-radius: 5px; cursor: pointer; background: #6c757d; color: white; transition: 0.3s; }
-        .floor-btn.active { background: #007bff; font-weight: bold; }
-
-        /* Map Area */
-        #map-wrapper { position: relative; display: inline-block; border: 4px solid #333; border-radius: 8px; overflow: hidden; }
-        #map-image { display: block; max-width: 100%; height: auto; cursor: crosshair; }
-
-        /* Pins */
-        .pin { position: absolute; width: 18px; height: 18px; border-radius: 50%; border: 2px solid white; transform: translate(-50%, -50%); cursor: pointer; z-index: 5; }
-        .pin-lost { background: #ff4d4d; box-shadow: 0 0 8px #ff4d4d; }
-        .pin-found { background: #2ecc71; box-shadow: 0 0 8px #2ecc71; }
-        #temp-pin { background: yellow; display: none; z-index: 10; border: 2px dashed black; }
-
-        /* Detail Popup */
-        #detail-box { 
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: white; padding: 20px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            display: none; z-index: 100; min-width: 250px; text-align: left;
-        }
-        #detail-box h3 { margin-top: 0; color: #007bff; }
-        .close-btn { background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; float: right; cursor: pointer; }
-
-        /* Form */
-        #report-form { display: none; margin-top: 30px; padding: 20px; border-top: 2px solid #eee; text-align: left; }
-        input, select, textarea { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; }
-        .save-btn { background: #28a745; color: white; border: none; padding: 12px; width: 100%; border-radius: 5px; font-size: 16px; cursor: pointer; }
+        body { font-family: sans-serif; background: #f0f2f5; text-align: center; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 20px; border-radius: 10px; }
+        #map-wrapper { position: relative; display: inline-block; border: 5px solid #333; }
+        .pin { position: absolute; width: 20px; height: 20px; border-radius: 50%; transform: translate(-50%, -50%); cursor: pointer; border: 2px solid white; }
+        .pin-lost { background: red; } .pin-found { background: green; }
+        .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5); display: none; z-index: 100; }
+        .auth-box { background: #eee; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
+        input, select { margin: 5px; padding: 8px; width: 80%; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>University Lost & Found</h1>
-    
-    <div class="floor-nav">
-        <a href="?floor=floor1"><button class="floor-btn <?php echo $current_floor=='floor1'?'active':''; ?>">1st Floor</button></a>
-        <a href="?floor=floor2"><button class="floor-btn <?php echo $current_floor=='floor2'?'active':''; ?>">2nd Floor</button></a>
-        <a href="?floor=floor3"><button class="floor-btn <?php echo $current_floor=='floor3'?'active':''; ?>">3rd Floor</button></a>
+    <h1>Uni Exchange Hub</h1>
+
+    <?php if (!isset($_SESSION['user_id'])): ?>
+        <div class="auth-box">
+            <h3>Login or Signup to Post/Claim</h3>
+            <form method="POST">
+                <input type="text" name="name" placeholder="Name (for Signup)">
+                <input type="email" name="email" placeholder="Email" required>
+                <input type="password" name="password" placeholder="Password" required>
+                <br>
+                <button name="login">Login</button> <button name="signup">Signup</button>
+            </form>
+        </div>
+    <?php else: ?>
+        <p>Welcome, <strong><?php echo $_SESSION['user_name']; ?></strong>! <a href="?logout=1">Logout</a></p>
+    <?php endif; ?>
+
+    <div>
+        <a href="?floor=floor1">Floor 1</a> | <a href="?floor=floor2">Floor 2</a>
     </div>
 
     <div id="map-wrapper">
-        <img src="<?php echo $current_floor; ?>.jpg" id="map-image" alt="Floor Map">
-        
-        <?php foreach ($items as $item): ?>
-            <div class="pin <?php echo ($item['item_type'] == 'lost' ? 'pin-lost' : 'pin-found'); ?>" 
-                 style="left: <?php echo $item['x_pos']; ?>%; top: <?php echo $item['y_pos']; ?>%;"
-                 onclick="showInfo('<?php echo addslashes($item['title']); ?>', '<?php echo addslashes($item['description']); ?>', '<?php echo addslashes($item['contact']); ?>', '<?php echo strtoupper($item['item_type']); ?>')">
-            </div>
+        <img src="<?php echo $current_floor; ?>.jpg" id="map-image" style="width:100%; max-width:800px;">
+        <?php foreach ($display_items as $i): ?>
+            <div class="pin <?php echo $i['item_type']=='lost'?'pin-lost':'pin-found'; ?>" 
+                 style="left:<?php echo $i['x_pos']; ?>%; top:<?php echo $i['y_pos']; ?>%;"
+                 onclick="showDetails(<?php echo htmlspecialchars(json_encode($i)); ?>)"></div>
         <?php endforeach; ?>
-
-        <div id="temp-pin" class="pin"></div>
     </div>
 
-    <div id="detail-box">
-        <button class="close-btn" onclick="closeInfo()">X</button>
-        <h3 id="info-title"></h3>
-        <p><strong>Status:</strong> <span id="info-type"></span></p>
-        <p><strong>Details:</strong> <span id="info-desc"></span></p>
-        <p><strong>Contact:</strong> <span id="info-contact"></span></p>
+    <div id="otp-modal" class="modal">
+        <h3 id="m-title"></h3>
+        <p id="m-desc"></p>
+        <p><strong>Posted by:</strong> <span id="m-owner"></span></p>
+        
+        <?php if (isset($_SESSION['user_id'])): ?>
+            <hr>
+            <form method="POST">
+                <input type="hidden" name="item_id" id="m-id">
+                <p>Enter OTP provided by the owner to confirm exchange:</p>
+                <input type="text" name="entered_otp" placeholder="4-Digit OTP" required>
+                <button name="verify_otp" style="background: #28a745; color: white;">Confirm & Resolve</button>
+            </form>
+            
+            <div id="owner-tools" style="display:none; color: blue; font-weight: bold; margin-top: 10px;">
+                Your OTP for this item: <span id="m-otp"></span>
+            </div>
+        <?php endif; ?>
+        <button onclick="document.getElementById('otp-modal').style.display='none'">Close</button>
     </div>
 
-    <div id="report-form">
-        <h2>Report Item on <?php echo strtoupper($current_floor); ?></h2>
+    <div id="report-form" style="display:none; margin-top: 20px;">
+        <h3>Report Item</h3>
         <form method="POST">
-            <input type="hidden" name="x_pos" id="form-x">
-            <input type="hidden" name="y_pos" id="form-y">
+            <input type="hidden" name="x_pos" id="fx">
+            <input type="hidden" name="y_pos" id="fy">
             <input type="hidden" name="floor" value="<?php echo $current_floor; ?>">
-
-            <input type="text" name="title" placeholder="What is the item?" required>
-            <textarea name="description" placeholder="Provide details (color, brand, specific spot)"></textarea>
-            <select name="item_type">
-                <option value="lost">I Lost This</option>
-                <option value="found">I Found This</option>
-            </select>
-            <input type="text" name="contact" placeholder="Your Phone/Email" required>
-            <button type="submit" name="save_item" class="save-btn">Submit Report</button>
+            <input type="text" name="title" placeholder="Item Title" required>
+            <textarea name="description" placeholder="Description"></textarea>
+            <select name="item_type"><option value="lost">I Lost This</option><option value="found">I Found This</option></select>
+            <input type="text" name="contact" placeholder="Contact Info" required>
+            <button name="save_item">Post Pin</button>
         </form>
     </div>
 </div>
 
 <script>
-    const mapImage = document.getElementById('map-image');
-    const tempPin = document.getElementById('temp-pin');
-    const reportForm = document.getElementById('report-form');
+    const map = document.getElementById('map-image');
+    map.onclick = (e) => {
+        <?php if(!isset($_SESSION['user_id'])) { echo "alert('Please login first'); return;"; } ?>
+        const rect = map.getBoundingClientRect();
+        document.getElementById('fx').value = ((e.clientX - rect.left) / rect.width) * 100;
+        document.getElementById('fy').value = ((e.clientY - rect.top) / rect.height) * 100;
+        document.getElementById('report-form').style.display = 'block';
+    };
 
-    // Click to place a pin
-    mapImage.addEventListener('click', function(e) {
-        const rect = mapImage.getBoundingClientRect();
-        const x = ((e.clientX - rect.left) / rect.width) * 100;
-        const y = ((e.clientY - rect.top) / rect.height) * 100;
-
-        tempPin.style.left = x + "%";
-        tempPin.style.top = y + "%";
-        tempPin.style.display = "block";
-
-        document.getElementById('form-x').value = x;
-        document.getElementById('form-y').value = y;
-        reportForm.style.display = "block";
-        reportForm.scrollIntoView({ behavior: 'smooth' });
-    });
-
-    // Function to show item details in popup
-    function showInfo(title, desc, contact, type) {
-        document.getElementById('info-title').innerText = title;
-        document.getElementById('info-type').innerText = type;
-        document.getElementById('info-desc').innerText = desc;
-        document.getElementById('info-contact').innerText = contact;
-        document.getElementById('detail-box').style.display = "block";
-    }
-
-    function closeInfo() {
-        document.getElementById('detail-box').style.display = "none";
+    function showDetails(item) {
+        document.getElementById('m-id').value = item.id;
+        document.getElementById('m-title').innerText = item.title;
+        document.getElementById('m-desc').innerText = item.description;
+        document.getElementById('m-owner').innerText = item.owner_name;
+        
+        // If current user is the one who posted it, show the OTP
+        const loggedInUser = <?php echo $_SESSION['user_id'] ?? 'null'; ?>;
+        const ownerTools = document.getElementById('owner-tools');
+        if (loggedInUser == item.user_id) {
+            ownerTools.style.display = 'block';
+            document.getElementById('m-otp').innerText = item.otp_code;
+        } else {
+            ownerTools.style.display = 'none';
+        }
+        
+        document.getElementById('otp-modal').style.display = 'block';
     }
 </script>
 
