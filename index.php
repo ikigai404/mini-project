@@ -13,14 +13,22 @@ $auth_type = "";
 // 2. SIGNUP LOGIC
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['signup_submit'])) {
     try {
+        $stmt = $db->prepare("SELECT id FROM users WHERE student_id = ? OR contact = ?");
+        $stmt->execute([$_POST['student_id'], $_POST['contact']]);
+        if ($stmt->fetch()) {
+            $auth_message = "Student ID or Contact Number already exists.";
+            $auth_type = "error";
+            echo "<script>window.onload = function() { showPage('signup'); }</script>";
+        } else {
         $hash = password_hash($_POST['password'], PASSWORD_DEFAULT);
         $stmt = $db->prepare("INSERT INTO users (name, student_id, contact, password) VALUES (?, ?, ?, ?)");
         $stmt->execute([$_POST['name'], $_POST['student_id'], $_POST['contact'], $hash]);
         $auth_message = "Account created! You can now sign in.";
         $auth_type = "success";
         echo "<script>window.onload = function() { showPage('signin'); }</script>";
+        }
     } catch(PDOException $e) {
-        $auth_message = "Student ID already exists.";
+        $auth_message = "An error occurred during registration.";
         $auth_type = "error";
         echo "<script>window.onload = function() { showPage('signup'); }</script>";
     }
@@ -74,7 +82,7 @@ if (isset($_POST['verify_otp'])) {
 
 // Fetch Items
 $current_floor = $_GET['floor'] ?? 'floor1';
-$allowed_floors = ['floor1', 'floor2', 'floor3'];
+$allowed_floors = ['floor1', 'floor2', 'floor3', 'floor4'];
 if (!in_array($current_floor, $allowed_floors)) $current_floor = 'floor1';
 
 $items_stmt = $db->prepare("SELECT items.*, users.name as owner_name FROM items JOIN users ON items.user_id = users.id WHERE floor = ? AND status = 'active'");
@@ -160,8 +168,10 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         }
         
         /* Map Specific Styles */
-        .pin { position: absolute; width: 24px; height: 24px; border-radius: 50% 50% 50% 0; transform: translate(-50%, -100%) rotate(-45deg); cursor: pointer; z-index: 40; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); border: 2px solid rgba(255,255,255,0.8); }
-        .pin:hover { transform: translate(-50%, -110%) rotate(-45deg) scale(1.2); z-index: 20; }
+        .pin { position: absolute; width: 24px; height: 24px; border-radius: 50% 50% 50% 0; transform: translate(-50%, -100%) rotate(-45deg); cursor: pointer; z-index: 40; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); border: 2px solid rgba(255,255,255,0.8); animation: floatPin 3s ease-in-out infinite; }
+        @keyframes floatPin { 0%, 100% { margin-top: 0px; } 50% { margin-top: -8px; } }
+        .pin:nth-child(odd) { animation-delay: 0.5s; animation-duration: 3.5s; }
+        .pin:hover { transform: translate(-50%, -110%) rotate(-45deg) scale(1.2); z-index: 100; animation-play-state: paused; }
         .pin-lost { background: linear-gradient(135deg, #ff416c, #ff4b2b); box-shadow: 0 0 10px rgba(239, 68, 68, 0.6); }
         .pin-found { background: linear-gradient(135deg, #11786c, #96c93d); box-shadow: 0 0 10px rgba(16, 185, 129, 0.6); }
         .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(8px); z-index:50; align-items:center; justify-content:center; }
@@ -194,12 +204,47 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
             opacity: 0;
             animation: slowFade 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
         }
+        
+        .floating-text {
+            position: absolute;
+            pointer-events: none;
+            white-space: nowrap;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: rgba(56, 189, 248, 0.15);
+            z-index: 0;
+            animation: floatAround var(--duration) linear infinite;
+        }
+
+        @keyframes floatAround {
+            0% { transform: translate(0, 0) rotate(0deg); animation-timing-function: ease-in-out; }
+            25% { transform: translate(calc(var(--rx, 50px) * 1), calc(var(--ry, 50px) * -1)) rotate(calc(var(--rd, 5deg) * 1)); }
+            50% { transform: translate(calc(var(--rx, 50px) * -1.2), calc(var(--ry, 50px) * 1.5)) rotate(calc(var(--rd, 5deg) * -1.5)); }
+            75% { transform: translate(calc(var(--rx, 50px) * 0.8), calc(var(--ry, 50px) * 0.8)) rotate(calc(var(--rd, 5deg) * 0.5)); }
+            100% { transform: translate(0, 0) rotate(0deg); }
+        }
+
         @keyframes slowFade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="bg-zinc-950 text-white min-h-screen overflow-x-hidden relative scroll-smooth">
     <div id="landing" class="<?php echo isset($_SESSION['user_id']) ? 'hidden' : ''; ?> hero-bg min-h-screen flex flex-col items-center justify-center relative">
         <div id="pointer-glow"></div>
+        
+        <!-- Floating Background Elements -->
+        <div class="floating-text text-4xl" style="top: 15%; left: 10%; --duration: 20s; --rx: 40px; --ry: 60px; --rd: 12deg;"><i class="fa-solid fa-key"></i></div>
+        <div class="floating-text text-2xl" style="top: 60%; left: 80%; --duration: 25s; --rx: -70px; --ry: 30px; --rd: -8deg;"><i class="fa-solid fa-wallet"></i></div>
+        <div class="floating-text text-5xl" style="top: 80%; left: 20%; --duration: 18s; --rx: 30px; --ry: -50px; --rd: 15deg;"><i class="fa-solid fa-id-card"></i></div>
+        <div class="floating-text text-3xl" style="top: 20%; left: 70%; --duration: 22s; --rx: -50px; --ry: 80px; --rd: -10deg;"><i class="fa-solid fa-bag-shopping"></i></div>
+        <div class="floating-text text-xl" style="top: 40%; left: 5%; --duration: 30s; --rx: 90px; --ry: 20px; --rd: 20deg;"><i class="fa-solid fa-mobile-screen-button"></i></div>
+        <div class="floating-text text-2xl" style="top: 5%; left: 40%; --duration: 28s; --rx: -20px; --ry: -90px; --rd: -15deg;"><i class="fa-solid fa-headphones"></i></div>
+        <div class="floating-text text-4xl" style="top: 85%; left: 60%; --duration: 24s; --rx: 60px; --ry: 40px; --rd: 10deg;"><i class="fa-solid fa-glasses"></i></div>
+        <div class="floating-text text-3xl" style="top: 50%; left: 90%; --duration: 21s; --rx: -80px; --ry: -30px; --rd: -12deg;"><i class="fa-solid fa-umbrella"></i></div>
+        <div class="floating-text text-2xl" style="top: 70%; left: 45%; --duration: 26s; --rx: 50px; --ry: 70px; --rd: 8deg;"><i class="fa-solid fa-laptop"></i></div>
+        <div class="floating-text text-xl" style="top: 30%; left: 25%; --duration: 19s; --rx: -40px; --ry: -60px; --rd: -18deg;"><i class="fa-solid fa-book"></i></div>
+
         <div class="max-w-6xl mx-auto px-6 text-center z-10">
             <div class="animate-item mb-6 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
                 <span class="relative flex h-2 w-2">
@@ -242,6 +287,19 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <div id="signin" class="<?php echo (isset($_SESSION['user_id']) || (isset($auth_type) && $auth_type == 'success')) ? 'hidden' : ''; ?> min-h-screen hero-bg flex items-center justify-center p-6 relative border-t border-white/5">
         <div id="pointer-glow"></div>
+
+        <!-- Floating Background Elements -->
+        <div class="floating-text text-4xl" style="top: 15%; left: 10%; --duration: 20s; --rx: 40px; --ry: 60px; --rd: 12deg;"><i class="fa-solid fa-key"></i></div>
+        <div class="floating-text text-2xl" style="top: 60%; left: 80%; --duration: 25s; --rx: -70px; --ry: 30px; --rd: -8deg;"><i class="fa-solid fa-wallet"></i></div>
+        <div class="floating-text text-5xl" style="top: 80%; left: 20%; --duration: 18s; --rx: 30px; --ry: -50px; --rd: 15deg;"><i class="fa-solid fa-id-card"></i></div>
+        <div class="floating-text text-3xl" style="top: 20%; left: 70%; --duration: 22s; --rx: -50px; --ry: 80px; --rd: -10deg;"><i class="fa-solid fa-bag-shopping"></i></div>
+        <div class="floating-text text-xl" style="top: 40%; left: 5%; --duration: 30s; --rx: 90px; --ry: 20px; --rd: 20deg;"><i class="fa-solid fa-mobile-screen-button"></i></div>
+        <div class="floating-text text-2xl" style="top: 5%; left: 40%; --duration: 28s; --rx: -20px; --ry: -90px; --rd: -15deg;"><i class="fa-solid fa-headphones"></i></div>
+        <div class="floating-text text-4xl" style="top: 85%; left: 60%; --duration: 24s; --rx: 60px; --ry: 40px; --rd: 10deg;"><i class="fa-solid fa-glasses"></i></div>
+        <div class="floating-text text-3xl" style="top: 50%; left: 90%; --duration: 21s; --rx: -80px; --ry: -30px; --rd: -12deg;"><i class="fa-solid fa-umbrella"></i></div>
+        <div class="floating-text text-2xl" style="top: 70%; left: 45%; --duration: 26s; --rx: 50px; --ry: 70px; --rd: 8deg;"><i class="fa-solid fa-laptop"></i></div>
+        <div class="floating-text text-xl" style="top: 30%; left: 25%; --duration: 19s; --rx: -40px; --ry: -60px; --rd: -18deg;"><i class="fa-solid fa-book"></i></div>
+
         <button onclick="window.scrollTo({top: 0, behavior: 'smooth'})" class="absolute top-8 left-8 text-white/50 hover:text-white transition-colors flex items-center gap-2">
             <i class="fa-solid fa-arrow-left"></i> Back
         </button>
@@ -289,16 +347,30 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <div id="signup" class="hidden min-h-screen hero-bg flex items-center justify-center p-6 relative border-t border-white/5">
         <div id="pointer-glow"></div>
-        <button onclick="showPage('signin'); window.scrollTo({top: 0, behavior: 'smooth'});" class="absolute top-8 left-8 text-white/50 hover:text-white transition-colors flex items-center gap-2">
+
+        <!-- Floating Background Elements -->
+        <div class="floating-text text-4xl" style="top: 15%; left: 10%; --duration: 20s; --rx: 40px; --ry: 60px; --rd: 12deg;"><i class="fa-solid fa-key"></i></div>
+        <div class="floating-text text-2xl" style="top: 60%; left: 80%; --duration: 25s; --rx: -70px; --ry: 30px; --rd: -8deg;"><i class="fa-solid fa-wallet"></i></div>
+        <div class="floating-text text-5xl" style="top: 80%; left: 20%; --duration: 18s; --rx: 30px; --ry: -50px; --rd: 15deg;"><i class="fa-solid fa-id-card"></i></div>
+        <div class="floating-text text-3xl" style="top: 20%; left: 70%; --duration: 22s; --rx: -50px; --ry: 80px; --rd: -10deg;"><i class="fa-solid fa-bag-shopping"></i></div>
+        <div class="floating-text text-xl" style="top: 40%; left: 5%; --duration: 30s; --rx: 90px; --ry: 20px; --rd: 20deg;"><i class="fa-solid fa-mobile-screen-button"></i></div>
+        <div class="floating-text text-2xl" style="top: 5%; left: 40%; --duration: 28s; --rx: -20px; --ry: -90px; --rd: -15deg;"><i class="fa-solid fa-headphones"></i></div>
+        <div class="floating-text text-4xl" style="top: 85%; left: 60%; --duration: 24s; --rx: 60px; --ry: 40px; --rd: 10deg;"><i class="fa-solid fa-glasses"></i></div>
+        <div class="floating-text text-3xl" style="top: 50%; left: 90%; --duration: 21s; --rx: -80px; --ry: -30px; --rd: -12deg;"><i class="fa-solid fa-umbrella"></i></div>
+        <div class="floating-text text-2xl" style="top: 70%; left: 45%; --duration: 26s; --rx: 50px; --ry: 70px; --rd: 8deg;"><i class="fa-solid fa-laptop"></i></div>
+        <div class="floating-text text-xl" style="top: 30%; left: 25%; --duration: 19s; --rx: -40px; --ry: -60px; --rd: -18deg;"><i class="fa-solid fa-book"></i></div>
+
+        <button onclick="showPage('signin')" class="absolute top-8 left-8 text-white/50 hover:text-white transition-colors flex items-center gap-2">
             <i class="fa-solid fa-arrow-left"></i> Back
         </button>
 
-        <div class="glass-panel rounded-[2rem] w-full max-w-md p-10 relative overflow-hidden my-8">
-            <div class="text-center mb-8 animate-item">
-                <div class="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-emerald-500/30">
+        <div class="glass-panel rounded-[2rem] w-full max-w-md p-6 my-4 relative overflow-hidden">
+            <div class="text-center mb-6 animate-item">
+                <div class="w-12 h-12 bg-sky-500/20 text-sky-400 rounded-xl flex items-center justify-center mx-auto mb-3 border border-sky-500/30">
                     <i class="fa-solid fa-user-plus text-2xl"></i>
                 </div>
-                <h2 class="text-3xl font-bold text-white">Join TraceIt</h2>
+                <h2 class="text-2xl font-bold text-white">Join TraceIt</h2>
+                <p class="text-zinc-400 text-sm mt-1">Create your campus recovery profile</p>
             </div>
 
             <?php if ($auth_message && isset($_POST['signup_submit'])): ?>
@@ -308,32 +380,33 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
                 </div>
             <?php endif; ?>
 
-            <form method="POST" class="space-y-4" onsubmit="showLoading(this, 'signup_btn')">
+            <form method="POST" class="space-y-3" onsubmit="showLoading(this, 'signup_btn')">
                 <div class="relative animate-item delay-100">
-                    <input type="text" name="name" id="reg_name" required class="floating-input focus-emerald w-full bg-zinc-900/50 border border-zinc-700/50 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-5 pt-7 pb-3 text-white outline-none transition-all" placeholder="Full Name">
-                    <label for="reg_name" class="floating-label absolute left-5 top-5 text-zinc-500 text-base transition-all pointer-events-none">Full Name</label>
+                    <input type="text" name="name" id="reg_name" required class="floating-input w-full bg-zinc-900/50 border border-zinc-700/50 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 rounded-xl px-5 pt-6 pb-2 text-sm text-white outline-none transition-all" placeholder="Full Name">
+                    <label for="reg_name" class="floating-label absolute left-5 top-4 text-zinc-500 text-sm transition-all cursor-text pointer-events-none">Full Name</label>
                 </div>
                 <div class="relative animate-item delay-100">
-                    <input type="text" name="student_id" id="reg_id" required class="floating-input focus-emerald w-full bg-zinc-900/50 border border-zinc-700/50 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-5 pt-7 pb-3 text-white outline-none transition-all" placeholder="Student ID">
-                    <label for="reg_id" class="floating-label absolute left-5 top-5 text-zinc-500 text-base transition-all pointer-events-none">Student ID</label>
+                    <input type="text" name="student_id" id="reg_id" required class="floating-input w-full bg-zinc-900/50 border border-zinc-700/50 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 rounded-xl px-5 pt-6 pb-2 text-sm text-white outline-none transition-all" placeholder="Student ID">
+                    <label for="reg_id" class="floating-label absolute left-5 top-4 text-zinc-500 text-sm transition-all cursor-text pointer-events-none">Student ID</label>
                 </div>
                 <div class="relative animate-item delay-200">
-                    <input type="text" name="contact" id="reg_phone" required class="floating-input focus-emerald w-full bg-zinc-900/50 border border-zinc-700/50 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-5 pt-7 pb-3 text-white outline-none transition-all" placeholder="Contact">
-                    <label for="reg_phone" class="floating-label absolute left-5 top-5 text-zinc-500 text-base transition-all pointer-events-none">Contact Number</label>
+                    <input type="text" name="contact" id="reg_phone" required class="floating-input focus-emerald w-full bg-zinc-900/50 border border-zinc-700/50 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-5 pt-6 pb-2 text-sm text-white outline-none transition-all" placeholder="Contact">
+                    <label for="reg_phone" class="floating-label absolute left-5 top-4 text-zinc-500 text-sm transition-all cursor-text pointer-events-none">Contact Number</label>
                 </div>
                 <div class="relative animate-item delay-200">
-                    <input type="password" name="password" id="reg_pwd" required class="floating-input focus-emerald w-full bg-zinc-900/50 border border-zinc-700/50 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl pl-5 pr-12 pt-7 pb-3 text-white outline-none transition-all" placeholder="Password">
-                    <label for="reg_pwd" class="floating-label absolute left-5 top-5 text-zinc-500 text-base transition-all pointer-events-none">Password</label>
+                    <input type="password" name="password" id="reg_pwd" required class="floating-input w-full bg-zinc-900/50 border border-zinc-700/50 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 rounded-xl pl-5 pr-12 pt-6 pb-2 text-sm text-white outline-none transition-all" placeholder="Password">
+                    <label for="reg_pwd" class="floating-label absolute left-5 top-4 text-zinc-500 text-sm transition-all cursor-text pointer-events-none">Password</label>
                     <button type="button" onclick="togglePassword('reg_pwd', 'eye_reg')" class="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white transition-colors">
                         <i id="eye_reg" class="fa-regular fa-eye"></i>
                     </button>
                 </div>
-                <button type="submit" name="signup_submit" id="signup_btn" class="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-emerald-500/20 animate-item delay-300 mt-2">
-                    Create Account
+                <button type="submit" name="signup_submit" id="signup_btn" class="w-full bg-sky-500 hover:bg-sky-400 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-sky-500/20 animate-item delay-300 flex items-center justify-center gap-2 group">
+                    <span>Create Account</span>
+                    <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
                 </button>
             </form>
-            <p class="mt-8 text-center text-zinc-400 animate-item delay-300">
-                Already registered? <span onclick="showPage('signin')" class="text-emerald-400 cursor-pointer hover:underline">Sign in</span>
+            <p class="mt-4 text-center text-sm text-zinc-400 animate-item delay-300">
+                Already registered? <span onclick="showPage('signin')" class="text-sky-400 cursor-pointer hover:underline">Sign in</span>
             </p>
         </div>
     </div>
@@ -343,7 +416,10 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         <div id="pointer-glow"></div>
         <div class="max-w-6xl mx-auto relative z-10">
         <div class="flex justify-between items-center mb-10">
-            <h1 class="logo-font text-4xl font-bold text-white tracking-tight">Trace<span class="text-sky-500">It</span> <span class="text-xs uppercase tracking-[0.3em] text-zinc-500 ml-2">v2.0</span></h1>
+            <h1 class="logo-font text-5xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-sky-500/50 drop-shadow-[0_0_15px_rgba(14,165,233,0.3)]">
+                TraceIt <span class="text-sky-500/80">.</span>
+                <span class="text-[10px] uppercase tracking-[0.5em] text-zinc-500 ml-2 font-sans align-middle opacity-70">v2.0</span>
+            </h1>
             <div class="flex items-center gap-6 bg-zinc-900/50 border border-zinc-800 p-2 pl-5 rounded-2xl backdrop-blur-md">
                 <div class="flex flex-col">
                     <span class="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Active User</span>
@@ -356,8 +432,10 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
 
         <div class="flex gap-4 mb-8">
-            <button onclick="changeFloor('floor1')" class="px-8 py-3 rounded-xl transition-all <?php echo $current_floor=='floor1'?'bg-sky-500 shadow-[0_0_20px_rgba(14,165,233,0.4)] text-white':'bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white'; ?>">Sector 01</button>
-            <button onclick="changeFloor('floor2')" class="px-8 py-3 rounded-xl transition-all <?php echo $current_floor=='floor2'?'bg-sky-500 shadow-[0_0_20px_rgba(14,165,233,0.4)] text-white':'bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white'; ?>">Sector 02</button>
+            <button onclick="changeFloor('floor1')" class="px-8 py-3 rounded-xl transition-all <?php echo $current_floor=='floor1'?'bg-sky-500 shadow-[0_0_20px_rgba(14,165,233,0.4)] text-white':'bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white'; ?>">Floor 01</button>
+            <button onclick="changeFloor('floor2')" class="px-8 py-3 rounded-xl transition-all <?php echo $current_floor=='floor2'?'bg-sky-500 shadow-[0_0_20px_rgba(14,165,233,0.4)] text-white':'bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white'; ?>">Floor 02</button>
+            <button onclick="changeFloor('floor3')" class="px-8 py-3 rounded-xl transition-all <?php echo $current_floor=='floor3'?'bg-sky-500 shadow-[0_0_20px_rgba(14,165,233,0.4)] text-white':'bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white'; ?>">Floor 03</button>
+            <button onclick="changeFloor('floor4')" class="px-8 py-3 rounded-xl transition-all <?php echo $current_floor=='floor4'?'bg-sky-500 shadow-[0_0_20px_rgba(14,165,233,0.4)] text-white':'bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white'; ?>">Floor 04</button>
         </div>
 
         <div id="mapWrapper" class="map-fade relative inline-block border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl bg-[#0a0f1d] group">
@@ -378,10 +456,10 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
                     $found_spot = true;
                     foreach ($placed_pins as $pos) {
                         $dist = sqrt(pow($display_x - $pos['x'], 2) + pow($display_y - $pos['y'], 2));
-                        if ($dist < 3.5) { // Threshold for overlap
-                            $display_x += 2.0 * cos($attempts);
-                            $display_y += 2.0 * sin($attempts);
+                        if ($dist < 6.0) { // Increased collision radius
                             $found_spot = false;
+                            $display_x += 4.0 * cos($attempts * 0.5);
+                            $display_y += 4.0 * sin($attempts * 0.5);
                             break;
                         }
                     }
@@ -433,17 +511,17 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
                 <input type="hidden" name="y_pos" id="ry">
                 <input type="hidden" name="floor" value="<?php echo htmlspecialchars($current_floor); ?>">
                 
-                <input type="text" name="title" placeholder="What is the item?" class="w-full bg-zinc-800 border border-zinc-700 focus:border-emerald-500 rounded-2xl p-4 text-white outline-none transition-all" required>
-                <textarea name="description" placeholder="Short description (color, brand)" class="w-full bg-zinc-800 border border-zinc-700 focus:border-emerald-500 rounded-2xl p-4 text-white outline-none transition-all resize-none h-24"></textarea>
+                <input type="text" name="title" placeholder="What is the item?" class="w-full bg-zinc-900/50 border border-zinc-700/50 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-5 py-4 text-white outline-none transition-all" required>
+                <textarea name="description" placeholder="Short description (color, brand)" class="w-full bg-zinc-900/50 border border-zinc-700/50 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-5 py-4 text-white outline-none transition-all resize-none h-24"></textarea>
                 
-                <select name="item_type" class="w-full bg-zinc-800 border border-zinc-700 focus:border-emerald-500 rounded-2xl p-4 text-white outline-none transition-all appearance-none cursor-pointer">
+                <select name="item_type" class="w-full bg-zinc-900/50 border border-zinc-700/50 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-5 py-4 text-white outline-none transition-all appearance-none cursor-pointer">
                     <option value="lost">I Lost This Item</option>
                     <option value="found">I Found This Item</option>
                 </select>
                 
-                <input type="text" name="contact" placeholder="Your Phone/WhatsApp" class="w-full bg-zinc-800 border border-zinc-700 focus:border-emerald-500 rounded-2xl p-4 text-white outline-none transition-all" required>
+                <input type="text" name="contact" placeholder="Your Phone/WhatsApp" class="w-full bg-zinc-900/50 border border-zinc-700/50 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-5 py-4 text-white outline-none transition-all" required>
                 
-                <button type="submit" name="save_item" id="report_btn" class="w-full bg-emerald-500 hover:bg-emerald-400 text-white py-4 rounded-2xl font-bold text-lg transition-colors shadow-lg shadow-emerald-500/20 mt-2">Pin to Map</button>
+                <button type="submit" name="save_item" id="report_btn" class="w-full bg-emerald-500 hover:bg-emerald-400 text-white py-4 rounded-xl font-bold text-lg transition-colors shadow-lg shadow-emerald-500/20 mt-2">Pin to Map</button>
             </form>
             <button onclick="closeModals()" class="w-full mt-4 text-zinc-500 hover:text-white transition-colors">Cancel</button>
         </div>
