@@ -95,13 +95,32 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         
         body { font-family: 'Inter', sans-serif; }
         .logo-font { font-family: 'Space Grotesk', sans-serif; }
+        .text-glow { text-shadow: 0 0 15px rgba(14, 165, 233, 0.5); }
         
-        /* Backgrounds & Animations */
-        .hero-bg { background: radial-gradient(circle at top left, #0ea5e9, #0284c8, #0f172a 80%); }
+        /* Enhanced Animated Background */
+        .hero-bg { 
+            background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        .hero-bg::before {
+            content: "";
+            position: fixed;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            background-image: 
+                radial-gradient(circle at 50% 50%, rgba(14, 165, 233, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 20% 30%, rgba(14, 165, 233, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 80% 70%, rgba(16, 185, 129, 0.05) 0%, transparent 40%),
+                url("https://www.transparenttextures.com/patterns/stardust.png");
+            opacity: 0.4;
+            pointer-events: none;
+            z-index: 0;
+            animation: pulse 10s ease-in-out infinite alternate;
+        }
         
         /* Glassmorphism Panel */
         .glass-panel {
-            background: rgba(24, 24, 27, 0.6);
+            background: rgba(15, 23, 42, 0.7);
             backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.1);
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
@@ -111,6 +130,10 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         @keyframes slideUpFade {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+            from { transform: scale(1); }
+            to { transform: scale(1.1); }
         }
         .animate-item { opacity: 0; animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         .delay-100 { animation-delay: 100ms; }
@@ -135,23 +158,53 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         }
         
         /* Map Specific Styles */
-        .pin { position: absolute; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; transform: translate(-50%, -50%); cursor: pointer; z-index: 10; transition: transform 0.2s; }
-        .pin:hover { transform: translate(-50%, -50%) scale(1.3); z-index: 20; }
-        .pin-lost { background: #ef4444; box-shadow: 0 0 10px #ef4444; }
-        .pin-found { background: #10b981; box-shadow: 0 0 10px #10b981; }
+        .pin { position: absolute; width: 24px; height: 24px; border-radius: 50% 50% 50% 0; transform: translate(-50%, -100%) rotate(-45deg); cursor: pointer; z-index: 10; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); border: 2px solid rgba(255,255,255,0.5); }
+        .pin:hover { transform: translate(-50%, -110%) rotate(-45deg) scale(1.2); z-index: 20; }
+        .pin-lost { background: linear-gradient(135deg, #ff416c, #ff4b2b); box-shadow: 0 0 20px rgba(239, 68, 68, 0.6); }
+        .pin-found { background: linear-gradient(135deg, #11786c, #96c93d); box-shadow: 0 0 20px rgba(16, 185, 129, 0.6); }
         .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(8px); z-index:50; align-items:center; justify-content:center; }
+        .map-container { perspective: 1000px; }
+        #mainMap:hover { filter: sepia(0.2) hue-rotate(180deg) brightness(1.1); cursor: crosshair; }
+        #mainMap { transition: transform 0.5s ease; border: 1px solid rgba(56, 189, 248, 0.2); }
     </style>
 </head>
 <body class="bg-zinc-950 text-white min-h-screen overflow-x-hidden">
-
-    <div id="landing" class="<?php echo isset($_SESSION['user_id']) ? 'hidden' : ''; ?> hero-bg min-h-screen flex items-center justify-center relative">
-        <div class="max-w-6xl mx-auto px-6 text-center z-10 animate-item">
-            <h1 class="logo-font text-7xl font-bold mb-4">TraceIt</h1>
-            <p class="text-2xl text-white/80 mb-10">Never lose anything again</p>
-            <div class="flex gap-4 justify-center">
-                <button onclick="showPage('signin')" class="bg-sky-500 hover:bg-sky-400 text-white px-8 py-4 rounded-full font-bold transition-all shadow-lg shadow-sky-500/30">Sign In</button>
-                <button onclick="showPage('signup')" class="bg-white/10 hover:bg-white/20 border border-white/20 text-white px-8 py-4 rounded-full font-bold transition-all backdrop-blur-md">Create Account</button>
+    <div id="landing" class="<?php echo isset($_SESSION['user_id']) ? 'hidden' : ''; ?> hero-bg min-h-screen flex flex-col items-center justify-center relative">
+        <!-- Decorative Elements -->
+        <div class="absolute top-20 left-20 w-64 h-64 bg-sky-500/10 rounded-full blur-[100px] animate-pulse"></div>
+        <div class="absolute bottom-20 right-20 w-96 h-96 bg-emerald-500/10 rounded-full blur-[120px] animate-pulse delay-700"></div>
+        
+        <div class="max-w-6xl mx-auto px-6 text-center z-10">
+            <div class="animate-item mb-6 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
+                <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span class="text-xs font-bold tracking-widest uppercase text-emerald-400/80">Campus Recovery System Live</span>
             </div>
+            
+            <h1 class="animate-item delay-100 logo-font text-7xl md:text-9xl font-bold mb-6 tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-sky-500/50">
+                TraceIt
+            </h1>
+            
+            <p class="animate-item delay-200 text-xl md:text-2xl text-zinc-400 mb-12 max-w-2xl mx-auto font-light leading-relaxed">
+                The intelligent lost and found network. <span class="text-white">Locate, report, and recover</span> items across campus with precision.
+            </p>
+            
+            <div class="animate-item delay-300 flex flex-col sm:flex-row gap-6 justify-center items-center">
+                <button onclick="showPage('signin')" class="group relative bg-sky-500 hover:bg-sky-400 text-white px-10 py-5 rounded-2xl font-bold transition-all shadow-[0_0_40px_rgba(14,165,233,0.3)] flex items-center gap-3 overflow-hidden">
+                    <span class="relative z-10">Get Started</span>
+                    <i class="fa-solid fa-chevron-right text-sm group-hover:translate-x-1 transition-transform relative z-10"></i>
+                    <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
+                </button>
+                <button onclick="showPage('signup')" class="bg-white/5 hover:bg-white/10 border border-white/10 text-white px-10 py-5 rounded-2xl font-bold transition-all backdrop-blur-md hover:border-white/20">
+                    Create Account
+                </button>
+            </div>
+        </div>
+        
+        <div class="absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce text-zinc-600">
+            <i class="fa-solid fa-mouse"></i>
         </div>
     </div>
 
@@ -254,19 +307,24 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
     <?php if (isset($_SESSION['user_id'])): ?>
     <div id="dashboard" class="min-h-screen p-8 max-w-6xl mx-auto">
         <div class="flex justify-between items-center mb-10">
-            <h1 class="logo-font text-4xl font-bold text-sky-400">TraceIt Dashboard</h1>
-            <div class="flex items-center gap-4">
-                <span class="text-zinc-400">Welcome, <?php echo htmlspecialchars($_SESSION['user_name']); ?></span>
-                <a href="?logout=1" class="bg-red-500/10 text-red-500 border border-red-500/20 px-4 py-2 rounded-xl hover:bg-red-500/20 transition-colors">Logout</a>
+            <h1 class="logo-font text-4xl font-bold text-white tracking-tight">Trace<span class="text-sky-500">It</span> <span class="text-xs uppercase tracking-[0.3em] text-zinc-500 ml-2">v2.0</span></h1>
+            <div class="flex items-center gap-6 bg-zinc-900/50 border border-zinc-800 p-2 pl-5 rounded-2xl backdrop-blur-md">
+                <div class="flex flex-col">
+                    <span class="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Active User</span>
+                    <span class="text-sky-400 font-semibold"><?php echo htmlspecialchars($_SESSION['user_name']); ?></span>
+                </div>
+                <a href="?logout=1" class="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white px-4 py-2.5 rounded-xl transition-all text-sm font-bold flex items-center gap-2">
+                    <i class="fa-solid fa-power-off"></i> Logout
+                </a>
             </div>
         </div>
 
         <div class="flex gap-4 mb-8">
-            <a href="?floor=floor1" class="px-8 py-3 rounded-2xl transition-colors <?php echo $current_floor=='floor1'?'bg-sky-500 text-white':'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white'; ?>">Floor 1</a>
-            <a href="?floor=floor2" class="px-8 py-3 rounded-2xl transition-colors <?php echo $current_floor=='floor2'?'bg-sky-500 text-white':'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white'; ?>">Floor 2</a>
+            <a href="?floor=floor1" class="px-8 py-3 rounded-xl transition-all <?php echo $current_floor=='floor1'?'bg-sky-500 shadow-[0_0_20px_rgba(14,165,233,0.4)] text-white':'bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white'; ?>">Sector 01</a>
+            <a href="?floor=floor2" class="px-8 py-3 rounded-xl transition-all <?php echo $current_floor=='floor2'?'bg-sky-500 shadow-[0_0_20px_rgba(14,165,233,0.4)] text-white':'bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white'; ?>">Sector 02</a>
         </div>
 
-        <div class="relative inline-block border-8 border-zinc-900 rounded-[2rem] overflow-hidden shadow-2xl bg-zinc-800">
+        <div class="relative inline-block border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl bg-zinc-900 group">
             <img src="<?php echo htmlspecialchars($current_floor); ?>.jpg" id="mainMap" class="w-full h-auto cursor-crosshair" alt="Floor Map">
             
             <?php foreach ($display_items as $item): ?>
