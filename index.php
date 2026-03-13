@@ -97,25 +97,25 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         .logo-font { font-family: 'Space Grotesk', sans-serif; }
         .text-glow { text-shadow: 0 0 15px rgba(14, 165, 233, 0.5); }
         
-        /* Enhanced Animated Background */
+        /* Smooth Page Transitions */
+        .page-section { transition: opacity 0.5s ease, transform 0.5s ease; position: absolute; width: 100%; top: 0; left: 0; visibility: visible; opacity: 1; }
+        .page-section.hidden { opacity: 0; pointer-events: none; transform: translateY(10px); visibility: hidden; position: absolute; }
+        .page-section:not(.hidden) { opacity: 1; pointer-events: auto; transform: translateY(0); position: relative; z-index: 10; }
+
+        /* Clean Technical Background */
         .hero-bg { 
-            background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%);
+            background-color: #020617;
+            background-image: 
+                linear-gradient(rgba(14, 165, 233, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(14, 165, 233, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
             position: relative;
             overflow: hidden;
         }
-        .hero-bg::before {
-            content: "";
-            position: fixed;
-            top: -50%; left: -50%; width: 200%; height: 200%;
-            background-image: 
-                radial-gradient(circle at 50% 50%, rgba(14, 165, 233, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 20% 30%, rgba(14, 165, 233, 0.05) 0%, transparent 40%),
-                radial-gradient(circle at 80% 70%, rgba(16, 185, 129, 0.05) 0%, transparent 40%),
-                url("https://www.transparenttextures.com/patterns/stardust.png");
-            opacity: 0.4;
+        .hero-bg::after {
+            content: ""; position: absolute; inset: 0;
+            background: radial-gradient(circle at 50% 50%, transparent 0%, #020617 80%);
             pointer-events: none;
-            z-index: 0;
-            animation: pulse 10s ease-in-out infinite alternate;
         }
         
         /* Glassmorphism Panel */
@@ -158,22 +158,36 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         }
         
         /* Map Specific Styles */
-        .pin { position: absolute; width: 24px; height: 24px; border-radius: 50% 50% 50% 0; transform: translate(-50%, -100%) rotate(-45deg); cursor: pointer; z-index: 10; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); border: 2px solid rgba(255,255,255,0.5); }
+        .pin { position: absolute; width: 24px; height: 24px; border-radius: 50% 50% 50% 0; transform: translate(-50%, -100%) rotate(-45deg); cursor: pointer; z-index: 10; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); border: 2px solid rgba(255,255,255,0.5); mix-blend-mode: screen; }
         .pin:hover { transform: translate(-50%, -110%) rotate(-45deg) scale(1.2); z-index: 20; }
-        .pin-lost { background: linear-gradient(135deg, #ff416c, #ff4b2b); box-shadow: 0 0 20px rgba(239, 68, 68, 0.6); }
-        .pin-found { background: linear-gradient(135deg, #11786c, #96c93d); box-shadow: 0 0 20px rgba(16, 185, 129, 0.6); }
+        .pin-lost { background: linear-gradient(135deg, #ff416c, #ff4b2b); box-shadow: 0 0 10px rgba(239, 68, 68, 0.6); }
+        .pin-found { background: linear-gradient(135deg, #11786c, #96c93d); box-shadow: 0 0 10px rgba(16, 185, 129, 0.6); }
         .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(8px); z-index:50; align-items:center; justify-content:center; }
         .map-container { perspective: 1000px; }
-        #mainMap:hover { filter: sepia(0.2) hue-rotate(180deg) brightness(1.1); cursor: crosshair; }
+        #mainMap:hover { cursor: crosshair; }
         #mainMap { transition: transform 0.5s ease; border: 1px solid rgba(56, 189, 248, 0.2); }
+
+        /* Pointer Glow Effect */
+        #pointer-glow {
+            position: fixed;
+            width: 400px; height: 400px;
+            background: radial-gradient(circle, rgba(14, 165, 233, 0.15) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            z-index: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        /* Map Transition */
+        .map-fade { animation: mapFadeIn 0.5s ease-out; }
+        @keyframes mapFadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+        #mapWrapper { transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
     </style>
 </head>
 <body class="bg-zinc-950 text-white min-h-screen overflow-x-hidden">
-    <div id="landing" class="<?php echo isset($_SESSION['user_id']) ? 'hidden' : ''; ?> hero-bg min-h-screen flex flex-col items-center justify-center relative">
-        <!-- Decorative Elements -->
-        <div class="absolute top-20 left-20 w-64 h-64 bg-sky-500/10 rounded-full blur-[100px] animate-pulse"></div>
-        <div class="absolute bottom-20 right-20 w-96 h-96 bg-emerald-500/10 rounded-full blur-[120px] animate-pulse delay-700"></div>
-        
+    <div id="landing" class="page-section <?php echo isset($_SESSION['user_id']) ? 'hidden' : ''; ?> hero-bg min-h-screen flex flex-col items-center justify-center relative">
+        <div id="pointer-glow"></div>
         <div class="max-w-6xl mx-auto px-6 text-center z-10">
             <div class="animate-item mb-6 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
                 <span class="relative flex h-2 w-2">
@@ -187,12 +201,12 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
                 TraceIt
             </h1>
             
-            <p class="animate-item delay-200 text-xl md:text-2xl text-zinc-400 mb-12 max-w-2xl mx-auto font-light leading-relaxed">
+            <p class="animate-item delay-200 text-xl md:text-2xl text-zinc-400 mb-8 max-w-2xl mx-auto font-light leading-relaxed">
                 The intelligent lost and found network. <span class="text-white">Locate, report, and recover</span> items across campus with precision.
             </p>
             
             <div class="animate-item delay-300 flex flex-col sm:flex-row gap-6 justify-center items-center">
-                <button onclick="showPage('signin')" class="group relative bg-sky-500 hover:bg-sky-400 text-white px-10 py-5 rounded-2xl font-bold transition-all shadow-[0_0_40px_rgba(14,165,233,0.3)] flex items-center gap-3 overflow-hidden">
+                <button onclick="document.getElementById('signin').scrollIntoView({behavior: 'smooth'})" class="group relative bg-sky-500 hover:bg-sky-400 text-white px-10 py-5 rounded-2xl font-bold transition-all shadow-[0_0_40px_rgba(14,165,233,0.3)] flex items-center gap-3 overflow-hidden">
                     <span class="relative z-10">Get Started</span>
                     <i class="fa-solid fa-chevron-right text-sm group-hover:translate-x-1 transition-transform relative z-10"></i>
                     <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
@@ -203,13 +217,17 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
             </div>
         </div>
         
-        <div class="absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce text-zinc-600">
-            <i class="fa-solid fa-mouse"></i>
+        <div class="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 cursor-pointer group transition-all hover:bottom-8" onclick="document.getElementById('signin').scrollIntoView({behavior: 'smooth'})">
+            <span class="text-[10px] uppercase tracking-[0.4em] text-zinc-500 font-bold group-hover:text-sky-400 transition-colors"></span>
+            <div class="flex flex-col items-center">
+                <i class="fa-solid fa-chevron-down text-sky-500 animate-bounce text-sm"></i>
+                <div class="w-px h-12 bg-gradient-to-b from-sky-500 via-sky-500/20 to-transparent mt-1"></div>
+            </div>
         </div>
     </div>
 
-    <div id="signin" class="hidden min-h-screen hero-bg flex items-center justify-center p-6 relative">
-        <button onclick="showPage('landing')" class="absolute top-8 left-8 text-white/50 hover:text-white transition-colors flex items-center gap-2">
+    <div id="signin" class="page-section <?php echo (isset($_SESSION['user_id']) || (isset($auth_type) && $auth_type == 'success')) ? 'hidden' : ''; ?> min-h-screen hero-bg flex items-center justify-center p-6 relative">
+        <button onclick="window.scrollTo({top: 0, behavior: 'smooth'})" class="absolute top-8 left-8 text-white/50 hover:text-white transition-colors flex items-center gap-2">
             <i class="fa-solid fa-arrow-left"></i> Back
         </button>
 
@@ -254,8 +272,8 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
 
-    <div id="signup" class="hidden min-h-screen hero-bg flex items-center justify-center p-6 relative">
-        <button onclick="showPage('landing')" class="absolute top-8 left-8 text-white/50 hover:text-white transition-colors flex items-center gap-2">
+    <div id="signup" class="page-section <?php echo ($auth_type == 'success' && !isset($_SESSION['user_id'])) ? '' : 'hidden'; ?> min-h-screen hero-bg flex items-center justify-center p-6 relative">
+        <button onclick="showPage('signin'); window.scrollTo({top: 0, behavior: 'smooth'});" class="absolute top-8 left-8 text-white/50 hover:text-white transition-colors flex items-center gap-2">
             <i class="fa-solid fa-arrow-left"></i> Back
         </button>
 
@@ -305,7 +323,8 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 
     <?php if (isset($_SESSION['user_id'])): ?>
-    <div id="dashboard" class="min-h-screen p-8 max-w-6xl mx-auto">
+    <div id="dashboard" class="page-section hero-bg min-h-screen p-8">
+        <div class="max-w-6xl mx-auto relative z-10">
         <div class="flex justify-between items-center mb-10">
             <h1 class="logo-font text-4xl font-bold text-white tracking-tight">Trace<span class="text-sky-500">It</span> <span class="text-xs uppercase tracking-[0.3em] text-zinc-500 ml-2">v2.0</span></h1>
             <div class="flex items-center gap-6 bg-zinc-900/50 border border-zinc-800 p-2 pl-5 rounded-2xl backdrop-blur-md">
@@ -320,19 +339,45 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
 
         <div class="flex gap-4 mb-8">
-            <a href="?floor=floor1" class="px-8 py-3 rounded-xl transition-all <?php echo $current_floor=='floor1'?'bg-sky-500 shadow-[0_0_20px_rgba(14,165,233,0.4)] text-white':'bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white'; ?>">Sector 01</a>
-            <a href="?floor=floor2" class="px-8 py-3 rounded-xl transition-all <?php echo $current_floor=='floor2'?'bg-sky-500 shadow-[0_0_20px_rgba(14,165,233,0.4)] text-white':'bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white'; ?>">Sector 02</a>
+            <button onclick="changeFloor('floor1')" class="px-8 py-3 rounded-xl transition-all <?php echo $current_floor=='floor1'?'bg-sky-500 shadow-[0_0_20px_rgba(14,165,233,0.4)] text-white':'bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white'; ?>">Sector 01</button>
+            <button onclick="changeFloor('floor2')" class="px-8 py-3 rounded-xl transition-all <?php echo $current_floor=='floor2'?'bg-sky-500 shadow-[0_0_20px_rgba(14,165,233,0.4)] text-white':'bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white'; ?>">Sector 02</button>
         </div>
 
-        <div class="relative inline-block border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl bg-zinc-900 group">
-            <img src="<?php echo htmlspecialchars($current_floor); ?>.jpg" id="mainMap" class="w-full h-auto cursor-crosshair" alt="Floor Map">
+        <div id="mapWrapper" class="map-fade relative inline-block border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl bg-zinc-900 group">
+            <img src="<?php echo htmlspecialchars($current_floor); ?>.jpg" id="mainMap" class="w-full h-auto" alt="Floor Map">
             
-            <?php foreach ($display_items as $item): ?>
+            <?php 
+            $placed_pins = [];
+            foreach ($display_items as $item): 
+                $orig_x = (float)$item['x_pos'];
+                $orig_y = (float)$item['y_pos'];
+                $display_x = $orig_x;
+                $display_y = $orig_y;
+                
+                // Collision avoidance: if a pin is too close to another, nudge it in a spiral
+                $attempts = 0;
+                $found_spot = false;
+                while (!$found_spot && $attempts < 20) {
+                    $found_spot = true;
+                    foreach ($placed_pins as $pos) {
+                        $dist = sqrt(pow($display_x - $pos['x'], 2) + pow($display_y - $pos['y'], 2));
+                        if ($dist < 3.5) { // Threshold for overlap
+                            $display_x += 2.0 * cos($attempts);
+                            $display_y += 2.0 * sin($attempts);
+                            $found_spot = false;
+                            break;
+                        }
+                    }
+                    $attempts++;
+                }
+                $placed_pins[] = ['x' => $display_x, 'y' => $display_y];
+            ?>
                 <div class="pin <?php echo $item['item_type']=='lost'?'pin-lost':'pin-found'; ?>" 
-                     style="left:<?php echo $item['x_pos']; ?>%; top:<?php echo $item['y_pos']; ?>%;"
+                     style="left:<?php echo $display_x; ?>%; top:<?php echo $display_y; ?>%;"
                      onclick='openDetailModal(<?php echo json_encode($item, JSON_HEX_APOS | JSON_HEX_QUOT); ?>)'>
                 </div>
             <?php endforeach; ?>
+        </div>
         </div>
     </div>
     <?php endif; ?>
@@ -388,21 +433,26 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 
     <script>
+        // 0. Pointer Glow Logic
+        const glow = document.getElementById('pointer-glow');
+        window.addEventListener('mousemove', (e) => {
+            glow.style.left = e.clientX + 'px';
+            glow.style.top = e.clientY + 'px';
+        });
+
         // 1. UI Interactions
         function showPage(page) {
-            ['landing','signin','signup'].forEach(id => {
+            const sections = ['landing', 'signin', 'signup', 'dashboard'];
+            sections.forEach(id => {
                 const el = document.getElementById(id);
-                if(el) el.classList.toggle('hidden', id !== page);
+                if (el) {
+                    if (id === page) {
+                        el.classList.remove('hidden');
+                    } else {
+                        el.classList.add('hidden');
+                    }
+                }
             });
-            const currentSection = document.getElementById(page);
-            if(currentSection) {
-                const items = currentSection.querySelectorAll('.animate-item');
-                items.forEach(item => {
-                    item.style.animation = 'none';
-                    item.offsetHeight; 
-                    item.style.animation = null; 
-                });
-            }
         }
 
         function togglePassword(inputId, iconId) {
@@ -423,6 +473,15 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
             const btn = document.getElementById(buttonId);
             btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Processing...`;
             btn.classList.add('opacity-80', 'cursor-not-allowed');
+        }
+
+        function changeFloor(floor) {
+            const wrapper = document.getElementById('mapWrapper');
+            wrapper.style.opacity = '0';
+            wrapper.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                window.location.href = '?floor=' + floor;
+            }, 300);
         }
 
         // 2. Map Interaction & Boundary Logic
