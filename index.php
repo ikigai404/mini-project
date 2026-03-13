@@ -103,11 +103,11 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         .page-section:not(.hidden) { opacity: 1; pointer-events: auto; transform: translateY(0); position: relative; z-index: 10; }
 
         /* Clean Technical Background */
-        .hero-bg { 
+        .hero-bg {
             background-color: #020617;
             background-image: 
-                linear-gradient(rgba(14, 165, 233, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(14, 165, 233, 0.03) 1px, transparent 1px);
+                linear-gradient(rgba(153, 218, 248, 0.08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(14, 165, 233, 0.08) 1px, transparent 1px);
             background-size: 40px 40px;
             position: relative;
             overflow: hidden;
@@ -117,7 +117,7 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
             background: radial-gradient(circle at 50% 50%, transparent 0%, #020617 80%);
             pointer-events: none;
         }
-        
+
         /* Glassmorphism Panel */
         .glass-panel {
             background: rgba(15, 23, 42, 0.7);
@@ -146,14 +146,16 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         }
 
         .floating-input:focus ~ .floating-label,
-        .floating-input:not(:placeholder-shown) ~ .floating-label {
-            top: 0.5rem;
+        .floating-input:not(:placeholder-shown) ~ .floating-label,
+        .floating-input:-webkit-autofill ~ .floating-label {
+            top: 0.75rem;
             font-size: 0.75rem;
             color: #38bdf8; /* Sky Blue by default */
         }
 
         .floating-input.focus-emerald:focus ~ .floating-label,
-        .floating-input.focus-emerald:not(:placeholder-shown) ~ .floating-label {
+        .floating-input.focus-emerald:not(:placeholder-shown) ~ .floating-label,
+        .floating-input.focus-emerald:-webkit-autofill ~ .floating-label {
             color: #10b981; /* Emerald Green for Sign Up */
         }
         
@@ -186,6 +188,13 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
 
         /* Prevent glow from appearing over modals/panels */
         .glass-panel, .modal-overlay > div { position: relative; z-index: 50; }
+
+        /* Fade In Animation */
+        .slow-fade-in {
+            opacity: 0;
+            animation: slowFade 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+        @keyframes slowFade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="bg-zinc-950 text-white min-h-screen overflow-x-hidden relative scroll-smooth">
@@ -199,16 +208,18 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
                 </span>
                 <span class="text-xs font-bold tracking-widest uppercase text-emerald-400/80">Campus Recovery System Live</span>
             </div>
-            
-            <h1 class="animate-item delay-100 logo-font text-7xl md:text-9xl font-bold mb-6 tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-sky-500/50">
-                TraceIt
+
+            <h1 class="slow-fade-in logo-font text-7xl md:text-9xl font-bold mb-6 tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-sky-500/50">
+                TraceIt .
             </h1>
             
-            <p class="animate-item delay-200 text-xl md:text-2xl text-zinc-400 mb-8 max-w-2xl mx-auto font-light leading-relaxed">
-                The intelligent lost and found network. <span class="text-white">Locate, report, and recover</span> items across campus with precision.
+            <p class="slow-fade-in text-lg md:text-xl text-zinc-400 mb-8 max-w-2xl mx-auto font-mono leading-relaxed" style="animation-delay: 0.5s;">
+                <span class="inline-block">
+                    TraceIt: A precision-mapped recovery network for campus essentials.
+                </span>
             </p>
             
-            <div class="animate-item delay-300 flex flex-col sm:flex-row gap-6 justify-center items-center">
+            <div class="slow-fade-in flex flex-col sm:flex-row gap-6 justify-center items-center" style="animation-delay: 1s;">
                 <button onclick="document.getElementById('signin').scrollIntoView({behavior: 'smooth'})" class="group relative bg-sky-500 hover:bg-sky-400 text-white px-10 py-5 rounded-2xl font-bold transition-all shadow-[0_0_40px_rgba(14,165,233,0.3)] flex items-center gap-3 overflow-hidden">
                     <span class="relative z-10">Get Started</span>
                     <i class="fa-solid fa-chevron-right text-sm group-hover:translate-x-1 transition-transform relative z-10"></i>
@@ -219,7 +230,7 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
                 </button>
             </div>
         </div>
-        
+
         <div class="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 cursor-pointer group transition-all hover:bottom-8" onclick="document.getElementById('signin').scrollIntoView({behavior: 'smooth'})">
             <span class="text-[10px] uppercase tracking-[0.4em] text-zinc-500 font-bold group-hover:text-sky-400 transition-colors"></span>
             <div class="flex flex-col items-center">
@@ -276,7 +287,7 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
 
-    <div id="signup" class="<?php echo ($auth_type == 'success' && !isset($_SESSION['user_id'])) ? '' : 'hidden'; ?> min-h-screen hero-bg flex items-center justify-center p-6 relative border-t border-white/5">
+    <div id="signup" class="hidden min-h-screen hero-bg flex items-center justify-center p-6 relative border-t border-white/5">
         <div id="pointer-glow"></div>
         <button onclick="showPage('signin'); window.scrollTo({top: 0, behavior: 'smooth'});" class="absolute top-8 left-8 text-white/50 hover:text-white transition-colors flex items-center gap-2">
             <i class="fa-solid fa-arrow-left"></i> Back
@@ -350,7 +361,7 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
 
         <div id="mapWrapper" class="map-fade relative inline-block border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl bg-zinc-900 group">
-            <img src="<?php echo htmlspecialchars($current_floor); ?>.jpg" id="mainMap" class="w-full h-auto" alt="Floor Map">
+            <img src="<?php echo htmlspecialchars($current_floor); ?>.jpg" id="mainMap" class="w-full h-auto block" alt="Floor Map">
             
             <?php 
             $placed_pins = [];
@@ -450,7 +461,12 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
 
         // 1. UI Interactions
         function showPage(page) {
+            document.getElementById('landing').classList.add('hidden');
+            document.getElementById('signin').classList.add('hidden');
+            document.getElementById('signup').classList.add('hidden');
+            
             const el = document.getElementById(page);
+            if (el) el.classList.remove('hidden');
             if (el) el.scrollIntoView({behavior: 'smooth'});
         }
 
@@ -484,25 +500,17 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         }
 
         // 2. Map Interaction & Boundary Logic
-        const map = document.getElementById('mainMap');
-        if(map) {
-            map.onclick = (e) => {
+        const mapWrapper = document.getElementById('mapWrapper');
+        if(mapWrapper) {
+            mapWrapper.onclick = (e) => {
                 if(e.target.classList.contains('pin')) return; 
 
-                const rect = map.getBoundingClientRect();
+                const rect = mapWrapper.getBoundingClientRect();
                 const x = ((e.clientX - rect.left) / rect.width) * 100;
                 const y = ((e.clientY - rect.top) / rect.height) * 100;
 
-                // --- 🛑 BOUNDARY BOX 🛑 ---
-                const minX = 10; // Left edge of building
-                const maxX = 90; // Right edge of building
-                const minY = 10; // Top edge of building
-                const maxY = 90; // Bottom edge of building
-
-                if (x < minX || x > maxX || y < minY || y > maxY) {
-                    alert("⚠️ You can only drop pins inside the designated building area.");
-                    return; 
-                }
+                if (x < 0 || x > 100 || y < 0 || y > 100) return;
+                if (e.target.id !== 'mainMap') return;
 
                 document.getElementById('rx').value = x;
                 document.getElementById('ry').value = y;
