@@ -59,9 +59,14 @@ if (isset($_GET['logout'])) {
 
 // 4. ITEM LOGIC
 if (isset($_POST['save_item']) && isset($_SESSION['user_id'])) {
+    // Fetch user's contact from database
+    $user_stmt = $db->prepare("SELECT contact FROM users WHERE id = ?");
+    $user_stmt->execute([$_SESSION['user_id']]);
+    $user_contact = $user_stmt->fetchColumn();
+
     $otp = rand(1000, 9999);
     $stmt = $db->prepare("INSERT INTO items (user_id, title, description, item_type, x_pos, y_pos, floor, contact, otp_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->execute([$_SESSION['user_id'], $_POST['title'], $_POST['description'], $_POST['item_type'], $_POST['x_pos'], $_POST['y_pos'], $_POST['floor'], $_POST['contact'], $otp]);
+    $stmt->execute([$_SESSION['user_id'], $_POST['title'], $_POST['description'], $_POST['item_type'], $_POST['x_pos'], $_POST['y_pos'], $_POST['floor'], $user_contact, $otp]);
     
     header("Location: index.php?floor=" . urlencode($_POST['floor']));
     exit();
@@ -71,14 +76,33 @@ if (isset($_POST['save_item']) && isset($_SESSION['user_id'])) {
 if (isset($_POST['verify_otp'])) {
     $stmt = $db->prepare("SELECT * FROM items WHERE id = ? AND otp_code = ?");
     $stmt->execute([$_POST['item_id'], $_POST['entered_otp']]);
-    if ($stmt->fetch()) {
+    $item = $stmt->fetch();
+    if ($item) {
         $db->prepare("UPDATE items SET status = 'resolved' WHERE id = ?")->execute([$_POST['item_id']]);
         header("Location: index.php?floor=" . urlencode($_GET['floor'] ?? 'floor1'));
         exit();
     } else {
-        echo "<script>alert('Invalid OTP Code!');</script>";
+        $auth_message = "Invalid OTP Code! Please check with the owner.";
+        $auth_type = "error";
     }
 }
+
+// 6. DELETE LOGIC
+if (isset($_POST['delete_item']) && isset($_SESSION['user_id'])) {
+    $stmt = $db->prepare("DELETE FROM items WHERE id = ? AND user_id = ?");
+    $stmt->execute([$_POST['item_id'], $_SESSION['user_id']]);
+    header("Location: index.php?floor=" . urlencode($_GET['floor'] ?? 'floor1'));
+    exit();
+}
+
+// 7. UPDATE LOGIC
+if (isset($_POST['update_item']) && isset($_SESSION['user_id'])) {
+    $stmt = $db->prepare("UPDATE items SET title = ?, description = ?, item_type = ? WHERE id = ? AND user_id = ?");
+    $stmt->execute([$_POST['title'], $_POST['description'], $_POST['item_type'], $_POST['item_id'], $_SESSION['user_id']]);
+    header("Location: index.php?floor=" . urlencode($_GET['floor'] ?? 'floor1'));
+    exit();
+}
+
 
 // Fetch Items
 $current_floor = $_GET['floor'] ?? 'floor1';
@@ -174,8 +198,8 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         .pin:hover { transform: translate(-50%, -110%) rotate(-45deg) scale(1.2); z-index: 100; animation-play-state: paused; }
         .pin-lost { background: linear-gradient(135deg, #ff416c, #ff4b2b); box-shadow: 0 0 10px rgba(239, 68, 68, 0.6); }
         .pin-found { background: linear-gradient(135deg, #11786c, #96c93d); box-shadow: 0 0 10px rgba(16, 185, 129, 0.6); }
-        .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(8px); z-index:50; align-items:center; justify-content:center; }
-        .map-container { perspective: 1000px; }
+        .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(8px); z-index:50; align-items:center; justify-content:center; overflow-y: auto; padding: 20px; }
+        .map-container { perspective: 1000px; position: relative; }
         #mainMap { cursor: default; filter: invert(1) hue-rotate(195deg) brightness(0.9) contrast(1.1) saturate(0.4) drop-shadow(0 0 25px rgba(56, 189, 248, 0.15)); opacity: 0.85; }
         #mainMap { transition: transform 0.5s ease; border: 1px solid rgba(56, 189, 248, 0.2); }
 
@@ -227,6 +251,11 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         }
 
         @keyframes slowFade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Hover Popup Styles */
+        .pin-popup { display: none; position: absolute; bottom: 140%; left: 50%; transform: translateX(-50%); z-index: 110; width: 260px; pointer-events: none; }
+        .pin:hover .pin-popup { display: block; }
+        .popup-content { transform: rotate(45deg); background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.15); }
     </style>
 </head>
 <body class="bg-zinc-950 text-white min-h-screen overflow-x-hidden relative scroll-smooth">
@@ -312,6 +341,13 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
                 <h2 class="text-3xl font-bold text-white">Welcome!</h2>
                 <p class="text-zinc-400 mt-2">Sign in to your TraceIt account</p>
             </div>
+
+            <?php if ($auth_message && isset($_POST['verify_otp'])): ?>
+                <div class="mb-6 p-4 rounded-xl text-sm font-medium flex items-center gap-3 animate-item bg-red-500/10 text-red-400 border border-red-500/20">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                    <?php echo $auth_message; ?>
+                </div>
+            <?php endif; ?>
 
             <?php if ($auth_message && isset($_POST['login_submit'])): ?>
                 <div class="mb-6 p-4 rounded-xl text-sm font-medium flex items-center gap-3 animate-item <?php echo $auth_type == 'error' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'; ?>">
@@ -415,6 +451,14 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
     <div id="dashboard" class="hero-bg min-h-screen p-8">
         <div id="pointer-glow"></div>
         <div class="max-w-6xl mx-auto relative z-10">
+        
+        <?php if ($auth_message && isset($_POST['verify_otp'])): ?>
+            <div class="mb-6 p-4 rounded-2xl text-sm font-medium flex items-center justify-between gap-3 animate-item bg-red-500/10 text-red-400 border border-red-500/20 backdrop-blur-md">
+                <div class="flex items-center gap-3"><i class="fa-solid fa-circle-exclamation"></i> <?php echo $auth_message; ?></div>
+                <button onclick="this.parentElement.remove()" class="opacity-50 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+        <?php endif; ?>
+
         <div class="flex justify-between items-center mb-10">
             <h1 class="logo-font text-5xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-sky-500/50 drop-shadow-[0_0_15px_rgba(14,165,233,0.3)]">
                 TraceIt <span class="text-sky-500/80">.</span>
@@ -470,7 +514,27 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
                 <div class="pin <?php echo $item['item_type']=='lost'?'pin-lost':'pin-found'; ?>" 
                      style="left:<?php echo $display_x; ?>%; top:<?php echo $display_y; ?>%;"
                      onclick='openDetailModal(<?php echo json_encode($item, JSON_HEX_APOS | JSON_HEX_QUOT); ?>)'>
+
+                    <!-- Hover Popup -->
+                    <div class="pin-popup">
+                        <div class="popup-content p-4 rounded-2xl shadow-2xl text-left">
+                            <p class="text-[10px] uppercase tracking-widest text-sky-400 font-bold mb-1"><?php echo strtoupper($item['item_type']); ?></p>
+                            <h4 class="font-bold text-white text-sm truncate"><?php echo htmlspecialchars($item['title']); ?></h4>
+                            <p class="text-zinc-400 text-xs line-clamp-2 mt-1"><?php echo htmlspecialchars($item['description']); ?></p>
+                            <div class="mt-3 flex flex-col gap-1">
+                                <div class="flex items-center gap-2 text-[10px] text-zinc-300">
+                                    <i class="fa-solid fa-user text-sky-400/70"></i>
+                                    <span><?php echo htmlspecialchars($item['owner_name']); ?></span>
+                                </div>
+                                <div class="flex items-center gap-2 text-[10px] text-zinc-300">
+                                    <i class="fa-solid fa-phone text-emerald-400/70"></i>
+                                    <span><?php echo htmlspecialchars($item['contact']); ?></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
             <?php endforeach; ?>
         </div>
         </div>
@@ -478,28 +542,52 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
     <?php endif; ?>
 
     <div id="detailModal" class="modal-overlay">
-        <div class="bg-zinc-900 p-10 rounded-[2.5rem] w-full max-w-md border border-zinc-800 shadow-2xl">
-            <h2 id="dt-title" class="text-3xl font-bold mb-2 text-white"></h2>
-            <p id="dt-desc" class="text-zinc-400 mb-6"></p>
+        <div class="bg-zinc-900 p-6 rounded-[2rem] w-full max-w-sm border border-zinc-800 shadow-2xl my-auto scale-90 md:scale-95">
+            <h2 id="dt-title" class="text-2xl font-bold mb-1 text-white truncate"></h2>
+            <p id="dt-desc" class="text-zinc-400 mb-3 text-sm line-clamp-3"></p>
             
-            <div class="bg-zinc-800/50 p-5 rounded-2xl mb-6 border border-zinc-700">
-                <p class="text-zinc-300"><strong>Owner:</strong> <span id="dt-owner" class="text-white"></span></p>
-                <p class="text-zinc-300 mt-2"><strong>Contact:</strong> <span id="dt-contact" class="text-white"></span></p>
+            <div class="bg-zinc-800/50 p-3 rounded-xl mb-3 border border-zinc-700 text-xs">
+                <p class="text-zinc-300"><strong><span id="dt-role-label">Owner</span>:</strong> <span id="dt-owner" class="text-white"></span></p>
+                <p class="text-zinc-300 mt-1"><strong>Contact:</strong> <span id="dt-contact" class="text-white"></span></p>
             </div>
 
-            <form method="POST" id="otpForm" class="space-y-4">
+            <div id="otpForm" class="hidden space-y-3">
+                <p class="text-emerald-400 text-xs font-medium mb-1"><i class="fa-solid fa-handshake"></i> <span id="dt-otp-instruction">Verify with the owner's OTP:</span></p>
+                <form method="POST" class="space-y-4">
                 <input type="hidden" name="item_id" id="dt-id">
                 <input type="hidden" name="floor" value="<?php echo htmlspecialchars($current_floor); ?>">
                 <input type="text" name="entered_otp" placeholder="Enter 4-Digit OTP from owner" class="w-full bg-zinc-800 border border-zinc-700 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 rounded-2xl p-4 text-white outline-none transition-all" required>
-                <button type="submit" name="verify_otp" class="w-full bg-sky-500 hover:bg-sky-400 text-white py-4 rounded-2xl font-bold text-lg transition-colors shadow-lg shadow-sky-500/20">Confirm Handshake</button>
-            </form>
-
-            <div id="otpDisplay" class="hidden text-center p-6 bg-sky-500/10 border border-sky-500/30 rounded-2xl">
-                <p class="text-sky-400 text-sm font-medium">Your Secret OTP for Exchange:</p>
-                <p id="dt-otp" class="text-5xl font-mono font-bold mt-2 text-white tracking-widest"></p>
+                <button type="submit" name="verify_otp" class="w-full bg-emerald-500 hover:bg-emerald-400 text-white py-4 rounded-2xl font-bold text-lg transition-colors shadow-lg shadow-emerald-500/20">Claim & Resolve Item</button>
+                </form>
             </div>
             
-            <button onclick="closeModals()" class="w-full mt-6 text-zinc-500 hover:text-white transition-colors">Close</button>
+            <div id="otpDisplay" class="hidden space-y-3">
+                <div class="text-center p-1.5 bg-sky-500/10 border border-sky-500/30 rounded-xl">
+                    <p class="text-sky-400 text-[10px] font-medium">Your Secret OTP for Exchange:</p>
+                    <p id="dt-otp" class="text-2xl font-mono font-bold text-white tracking-widest"></p>
+                </div>
+                
+                <form method="POST" class="space-y-2 border-t border-zinc-800 pt-3">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Edit Report</span>
+                    </div>
+                    <input type="hidden" name="item_id" id="dt-id-edit">
+                    <input type="text" name="title" id="edit-title" class="w-full bg-transparent border border-zinc-700/50 rounded-xl px-4 py-2 text-sm text-white outline-none focus:border-sky-500/50 transition-all" placeholder="Item Title" required>
+                    <textarea name="description" id="edit-desc" class="w-full bg-transparent border border-zinc-700/50 rounded-xl px-4 py-2 text-sm text-white outline-none focus:border-sky-500/50 h-16 resize-none" placeholder="Description"></textarea>
+                    <select name="item_type" id="edit-type" class="w-full bg-transparent border border-zinc-700/50 rounded-xl px-4 py-2 text-sm text-white outline-none focus:border-sky-500/50 appearance-none cursor-pointer">
+                        <option value="lost">I Lost This Item</option>
+                        <option value="found">I Found This Item</option>
+                    </select>
+                    <button type="submit" name="update_item" class="w-full bg-sky-500/80 hover:bg-sky-500 text-white py-1.5 rounded-lg font-bold text-xs transition-all mt-1">Update Details</button>
+                </form>
+
+                <form method="POST" onsubmit="return confirm('Are you sure you want to remove this report?');" class="pt-1">
+                    <input type="hidden" name="item_id" id="dt-id-delete">
+                    <button type="submit" name="delete_item" class="w-full bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white py-2 rounded-lg font-bold text-xs transition-all border border-red-500/20">Remove Report</button>
+                </form>
+            </div>
+            
+            <button onclick="closeModals()" class="w-full mt-2 text-zinc-500 hover:text-white transition-colors text-xs">Close</button>
         </div>
     </div>
 
@@ -518,8 +606,6 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
                     <option value="lost">I Lost This Item</option>
                     <option value="found">I Found This Item</option>
                 </select>
-                
-                <input type="text" name="contact" placeholder="Your Phone/WhatsApp" class="w-full bg-zinc-900/50 border border-zinc-700/50 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-5 py-4 text-white outline-none transition-all" required>
                 
                 <button type="submit" name="save_item" id="report_btn" class="w-full bg-emerald-500 hover:bg-emerald-400 text-white py-4 rounded-xl font-bold text-lg transition-colors shadow-lg shadow-emerald-500/20 mt-2">Pin to Map</button>
             </form>
@@ -623,6 +709,14 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
             document.getElementById('dt-desc').innerText = item.description;
             document.getElementById('dt-owner').innerText = item.owner_name;
             document.getElementById('dt-contact').innerText = item.contact;
+            document.getElementById('dt-role-label').innerText = item.item_type === 'found' ? 'Founder' : 'Owner';
+            document.getElementById('dt-otp-instruction').innerText = item.item_type === 'found' ? 'Claim item from founder? Verify with their OTP:' : 'Found this item? Verify with the owner\'s OTP:';
+
+            if(document.getElementById('dt-id-delete')) document.getElementById('dt-id-delete').value = item.id;
+            if(document.getElementById('dt-id-edit')) document.getElementById('dt-id-edit').value = item.id;
+            if(document.getElementById('edit-title')) document.getElementById('edit-title').value = item.title;
+            if(document.getElementById('edit-desc')) document.getElementById('edit-desc').value = item.description;
+            if(document.getElementById('edit-type')) document.getElementById('edit-type').value = item.item_type;
 
             if(item.user_id == userId) {
                 document.getElementById('otpForm').classList.add('hidden');
