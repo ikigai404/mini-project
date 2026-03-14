@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['signup_submit'])) {
         $stmt->execute([$_POST['name'], $_POST['student_id'], $_POST['contact'], $hash]);
         $auth_message = "Account created! You can now sign in.";
         $auth_type = "success";
-        echo "<script>window.onload = function() { showPage('signin'); }</script>";
+        echo "<script>window.onload = function() { window.location.hash = 'signin'; }</script>";
         }
     } catch(PDOException $e) {
         $auth_message = "An error occurred during registration.";
@@ -131,16 +131,19 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         .logo-font { font-family: 'Space Grotesk', sans-serif; }
         .text-glow { text-shadow: 0 0 15px rgba(14, 165, 233, 0.5); }
         
-        /* Smooth Page Transitions */
-        .page-section { transition: opacity 0.5s ease, transform 0.5s ease; position: absolute; width: 100%; top: 0; left: 0; visibility: visible; opacity: 1; }
-        .page-section.hidden { opacity: 0; pointer-events: none; transform: translateY(10px); visibility: hidden; position: absolute; }
-        .page-section:not(.hidden) { opacity: 1; pointer-events: auto; transform: translateY(0); position: relative; z-index: 10; }
+        /* Scrollable Page Layout */
+        .page-section { width: 100%; position: relative; }
+        .page-section.hidden { display: none !important; }
+        html { scroll-behavior: smooth; }
 
         /* Global Technical Background */
         body {
             background-color: #0c4a6e;
+        }
+
+        body, #signup {
             background-image: 
-                linear-gradient(rgba(153, 218, 248, 0.08) 1px, transparent 1px),
+                linear-gradient(rgba(14, 165, 233, 0.08) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(14, 165, 233, 0.08) 1px, transparent 1px);
             background-size: 40px 40px;
             background-attachment: fixed;
@@ -152,6 +155,11 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
             content: ""; position: absolute; inset: 0;
             background: radial-gradient(circle at 50% 50%, transparent 0%, #0c4a6e 80%);
             pointer-events: none;
+        }
+
+        #signup {
+            background-color: #000000 !important;
+            background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px) !important;
         }
 
         /* Glassmorphism Panel */
@@ -263,7 +271,7 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
     </style>
 </head>
 <body class="bg-zinc-950 text-white min-h-screen overflow-x-hidden relative scroll-smooth">
-    <div id="landing" class="<?php echo isset($_SESSION['user_id']) ? 'hidden' : ''; ?> min-h-screen flex flex-col items-center justify-center relative">
+    <div id="landing" class="page-section <?php echo isset($_SESSION['user_id']) ? 'hidden' : ''; ?> min-h-screen flex flex-col items-center justify-center relative">
         <div id="pointer-glow"></div>
         
         <!-- Floating Background Elements -->
@@ -298,7 +306,7 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
             </p>
             
             <div class="slow-fade-in flex flex-col sm:flex-row gap-6 justify-center items-center" style="animation-delay: 1s;">
-                <button onclick="document.getElementById('signin').scrollIntoView({behavior: 'smooth'})" class="group relative bg-sky-500 hover:bg-sky-400 text-white px-10 py-5 rounded-2xl font-bold transition-all shadow-[0_0_40px_rgba(14,165,233,0.3)] flex items-center gap-3 overflow-hidden">
+                <button onclick="showPage('signin')" class="group relative bg-sky-500 hover:bg-sky-400 text-white px-10 py-5 rounded-2xl font-bold transition-all shadow-[0_0_40px_rgba(14,165,233,0.3)] flex items-center gap-3 overflow-hidden">
                     <span class="relative z-10">Get Started</span>
                     <i class="fa-solid fa-chevron-right text-sm group-hover:translate-x-1 transition-transform relative z-10"></i>
                     <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
@@ -309,7 +317,7 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
             </div>
         </div>
 
-        <div class="absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 cursor-pointer group transition-all translate-y-1/2 z-20" onclick="document.getElementById('signin').scrollIntoView({behavior: 'smooth'})">
+        <div class="absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 cursor-pointer group transition-all translate-y-1/2 z-20" onclick="document.getElementById('features').scrollIntoView({behavior: 'smooth'})">
             <span class="text-[10px] uppercase tracking-[0.4em] text-zinc-500 font-bold group-hover:text-sky-400 transition-colors">Explore Features</span>
             <div class="flex flex-col items-center">
                 <i class="fa-solid fa-chevron-down text-sky-500 animate-bounce text-sm"></i>
@@ -319,7 +327,7 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 
     <!-- Professional Feature Tiles Section -->
-    <div id="features" class="<?php echo isset($_SESSION['user_id']) ? 'hidden' : ''; ?> py-24 relative overflow-hidden">
+    <div id="features" class="page-section <?php echo isset($_SESSION['user_id']) ? 'hidden' : ''; ?> py-24 relative overflow-hidden">
         <div class="max-w-6xl mx-auto px-8 relative z-10">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <!-- Tile 1 -->
@@ -354,7 +362,7 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
                     <h2 class="text-4xl font-bold mb-4">Ready to reunite?</h2>
                     <p class="text-zinc-400 text-lg">Join hundreds of students already using TraceIt to secure their campus life. Professional, secure, and efficient.</p>
                 </div>
-                <button onclick="document.getElementById('signin').scrollIntoView({behavior: 'smooth'})" class="bg-white text-black px-12 py-5 rounded-2xl font-bold hover:bg-sky-400 hover:text-white transition-all whitespace-nowrap">
+                <button onclick="showPage('signin')" class="bg-white text-black px-12 py-5 rounded-2xl font-bold hover:bg-sky-400 hover:text-white transition-all whitespace-nowrap">
                     Sign In Now
                 </button>
             </div>
@@ -365,7 +373,7 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         <div class="absolute bottom-0 right-0 w-96 h-96 bg-emerald-500/5 blur-[120px] rounded-full"></div>
     </div>
 
-    <div id="signin" class="<?php echo (isset($_SESSION['user_id']) || (isset($auth_type) && $auth_type == 'success')) ? 'hidden' : ''; ?> min-h-screen flex items-center justify-center p-6 relative">
+    <div id="signin" class="page-section <?php echo (isset($_SESSION['user_id']) || (isset($auth_type) && $auth_type == 'success')) ? 'hidden' : ''; ?> min-h-screen flex items-center justify-center p-6 relative">
         <div id="pointer-glow"></div>
 
         <!-- Floating Background Elements -->
@@ -405,7 +413,7 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
 
             <form method="POST" class="space-y-5" onsubmit="showLoading(this, 'login_btn')">
                 <div class="relative animate-item delay-100">
-                    <input type="text" name="student_id" id="login_id" required class="floating-input w-full bg-zinc-900/50 border border-zinc-700/50 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 rounded-xl px-5 pt-7 pb-3 text-white outline-none transition-all" placeholder="Student ID">
+                    <input type="text" name="student_id" id="login_id" required class="floating-input w-full bg-zinc-900/50 border border-zinc-700/50 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 rounded-xl px-5 pt-7 pb-3 text-white outline-none transition-all" placeholder=" ">
                     <label for="login_id" class="floating-label absolute left-5 top-5 text-zinc-500 text-base transition-all cursor-text pointer-events-none">Student ID</label>
                 </div>
 
@@ -428,11 +436,11 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
 
-    <div id="signup" class="hidden min-h-screen flex items-center justify-center p-6 relative">
+    <div id="signup" class="page-section hidden fixed inset-0 z-[100] min-h-screen flex items-center justify-center p-6 overflow-y-auto">
         <div id="pointer-glow"></div>
 
         <!-- Floating Background Elements -->
-        <div class="floating-text text-4xl" style="top: 15%; left: 10%; --duration: 20s; --rx: 40px; --ry: 60px; --rd: 12deg;"><i class="fa-solid fa-key"></i></div>
+        <div class="floating-text text-4xl" style="top: 15%; left: 10%; --duration: 20s; --rx: 40px; --ry: 60px; --rd: 12deg;"><i class="fa-solid fa-user-plus"></i></div>
         <div class="floating-text text-2xl" style="top: 60%; left: 80%; --duration: 25s; --rx: -70px; --ry: 30px; --rd: -8deg;"><i class="fa-solid fa-wallet"></i></div>
         <div class="floating-text text-5xl" style="top: 80%; left: 20%; --duration: 18s; --rx: 30px; --ry: -50px; --rd: 15deg;"><i class="fa-solid fa-id-card"></i></div>
         <div class="floating-text text-3xl" style="top: 20%; left: 70%; --duration: 22s; --rx: -50px; --ry: 80px; --rd: -10deg;"><i class="fa-solid fa-bag-shopping"></i></div>
@@ -443,7 +451,7 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         <div class="floating-text text-2xl" style="top: 70%; left: 45%; --duration: 26s; --rx: 50px; --ry: 70px; --rd: 8deg;"><i class="fa-solid fa-laptop"></i></div>
         <div class="floating-text text-xl" style="top: 30%; left: 25%; --duration: 19s; --rx: -40px; --ry: -60px; --rd: -18deg;"><i class="fa-solid fa-book"></i></div>
 
-        <button onclick="showPage('signin')" class="absolute top-8 left-8 text-white/50 hover:text-white transition-colors flex items-center gap-2">
+        <button onclick="showPage('landing')" class="absolute top-8 left-8 text-white/50 hover:text-white transition-colors flex items-center gap-2 z-[110]">
             <i class="fa-solid fa-arrow-left"></i> Back
         </button>
 
@@ -465,19 +473,19 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
 
             <form method="POST" class="space-y-3" onsubmit="showLoading(this, 'signup_btn')">
                 <div class="relative animate-item delay-100">
-                    <input type="text" name="name" id="reg_name" required class="floating-input w-full bg-zinc-900/50 border border-zinc-700/50 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 rounded-xl px-5 pt-6 pb-2 text-sm text-white outline-none transition-all" placeholder="Full Name">
+                    <input type="text" name="name" id="reg_name" required class="floating-input w-full bg-zinc-900/50 border border-zinc-700/50 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 rounded-xl px-5 pt-6 pb-2 text-sm text-white outline-none transition-all" placeholder=" ">
                     <label for="reg_name" class="floating-label absolute left-5 top-4 text-zinc-500 text-sm transition-all cursor-text pointer-events-none">Full Name</label>
                 </div>
                 <div class="relative animate-item delay-100">
-                    <input type="text" name="student_id" id="reg_id" required class="floating-input w-full bg-zinc-900/50 border border-zinc-700/50 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 rounded-xl px-5 pt-6 pb-2 text-sm text-white outline-none transition-all" placeholder="Student ID">
+                    <input type="text" name="student_id" id="reg_id" required class="floating-input w-full bg-zinc-900/50 border border-zinc-700/50 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 rounded-xl px-5 pt-6 pb-2 text-sm text-white outline-none transition-all" placeholder=" ">
                     <label for="reg_id" class="floating-label absolute left-5 top-4 text-zinc-500 text-sm transition-all cursor-text pointer-events-none">Student ID</label>
                 </div>
                 <div class="relative animate-item delay-200">
-                    <input type="text" name="contact" id="reg_phone" required class="floating-input focus-emerald w-full bg-zinc-900/50 border border-zinc-700/50 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-5 pt-6 pb-2 text-sm text-white outline-none transition-all" placeholder="Contact">
+                    <input type="text" name="contact" id="reg_phone" required class="floating-input focus-emerald w-full bg-zinc-900/50 border border-zinc-700/50 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-5 pt-6 pb-2 text-sm text-white outline-none transition-all" placeholder=" ">
                     <label for="reg_phone" class="floating-label absolute left-5 top-4 text-zinc-500 text-sm transition-all cursor-text pointer-events-none">Contact Number</label>
                 </div>
                 <div class="relative animate-item delay-200">
-                    <input type="password" name="password" id="reg_pwd" required class="floating-input w-full bg-zinc-900/50 border border-zinc-700/50 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 rounded-xl pl-5 pr-12 pt-6 pb-2 text-sm text-white outline-none transition-all" placeholder="Password">
+                    <input type="password" name="password" id="reg_pwd" required class="floating-input w-full bg-zinc-900/50 border border-zinc-700/50 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 rounded-xl pl-5 pr-12 pt-6 pb-2 text-sm text-white outline-none transition-all" placeholder=" ">
                     <label for="reg_pwd" class="floating-label absolute left-5 top-4 text-zinc-500 text-sm transition-all cursor-text pointer-events-none">Password</label>
                     <button type="button" onclick="togglePassword('reg_pwd', 'eye_reg')" class="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white transition-colors">
                         <i id="eye_reg" class="fa-regular fa-eye"></i>
@@ -495,7 +503,7 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 
     <?php if (isset($_SESSION['user_id'])): ?>
-    <div id="dashboard" class="min-h-screen p-8">
+    <div id="dashboard" class="page-section min-h-screen p-8">
         <div id="pointer-glow"></div>
         <div class="max-w-6xl mx-auto relative z-10">
         
@@ -515,7 +523,7 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         <?php endif; ?>
 
         <div class="flex justify-between items-center mb-10">
-            <h1 class="logo-font text-5xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-sky-500/50 drop-shadow-[0_0_15px_rgba(14,165,233,0.3)]">
+            <h1 onclick="window.location.href='index.php'" class="logo-font text-5xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-sky-500/50 drop-shadow-[0_0_15px_rgba(14,165,233,0.3)] cursor-pointer">
                 TraceIt <span class="text-sky-500/80">.</span>
                 <span class="text-[10px] uppercase tracking-[0.5em] text-zinc-500 ml-2 font-sans align-middle opacity-70">v2.0</span>
             </h1>
@@ -672,7 +680,7 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
         <div class="max-w-6xl mx-auto px-8">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-12 mb-16">
                 <div class="space-y-4">
-                    <h3 class="logo-font text-2xl font-bold text-white">TraceIt<span class="text-sky-500">.</span></h3>
+                    <h3 onclick="window.location.href='index.php'" class="logo-font text-2xl font-bold text-white cursor-pointer">TraceIt<span class="text-sky-500">.</span></h3>
                     <p class="text-zinc-400 text-sm leading-relaxed">
                         The next generation of campus lost and found. Leveraging precision mapping and secure OTP verification to reunite students with their essentials.
                     </p>
@@ -715,12 +723,20 @@ $display_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
 
         // 1. UI Interactions
         function showPage(page) {
-            document.getElementById('landing').classList.add('hidden');
-            document.getElementById('signin').classList.add('hidden');
-            document.getElementById('signup').classList.add('hidden');
+            const landing = document.getElementById('landing');
+            const features = document.getElementById('features');
+            const signin = document.getElementById('signin');
+            const signup = document.getElementById('signup');
+
+            if (page === 'signup') {
+                signup.classList.remove('hidden');
+            } else {
+                signup.classList.add('hidden');
+            }
+            
+            if (page === 'landing') window.scrollTo({top: 0, behavior: 'smooth'});
             
             const el = document.getElementById(page);
-            if (el) el.classList.remove('hidden');
             if (el) el.scrollIntoView({behavior: 'smooth'});
         }
 
